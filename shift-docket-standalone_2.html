@@ -1,0 +1,2928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shift Docket</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1B2430;
+    --shell-1:#20262E;
+    --shell-2:#171B21;
+    --paper:#F7F2E4;
+    --paper-shadow:#E7DFC8;
+    --amber:#F0A202;
+    --amber-dim:#B67C05;
+    --teal:#2E7D6B;
+    --line:#3A424D;
+    --muted:#B8C0CB;
+    --surface-1:#262C34;
+    --surface-2:#1D2229;
+    --surface-hover:#2E3540;
+    --surface-badge:#333B45;
+    --text-main:#EDEDED;
+    --text-secondary:#DADFE5;
+  }
+  body[data-theme="light"]{
+    --shell-1:#F3F5F7;
+    --shell-2:#E7EAED;
+    --line:#D7DBE0;
+    --muted:#5B6472;
+    --surface-1:#FFFFFF;
+    --surface-2:#F0F2F4;
+    --surface-hover:#E8EBEE;
+    --surface-badge:#E2E6EA;
+    --text-main:#1B2430;
+    --text-secondary:#374151;
+    background: linear-gradient(180deg,var(--shell-1),var(--shell-2));
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #262D36 0%, transparent 60%),
+      linear-gradient(180deg,var(--shell-1),var(--shell-2));
+    color:var(--text-main);
+    transition:background .2s ease, color .2s ease;
+    min-height:100vh;
+  }
+  .app{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+  .login-screen{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .login-box{
+    background:var(--surface-1);border:1px solid var(--line);border-radius:12px;
+    padding:32px;max-width:360px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.4);
+  }
+  .login-title{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;color:var(--text-main);text-align:center;}
+  .login-subtitle{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);text-align:center;margin-bottom:24px;}
+  .login-input{
+    width:100%;font-family:'Inter',sans-serif;font-size:14px;background:var(--surface-2);
+    border:1px solid var(--line);color:var(--text-main);padding:9px 12px;border-radius:6px;
+  }
+  .login-input:focus{outline:none;border-color:var(--amber);}
+  .login-error{color:#E15555;font-size:12.5px;margin-top:10px;min-height:16px;}
+  .confirm-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;
+    display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .confirm-box{
+    background:var(--surface-1);border:1px solid var(--line);border-radius:10px;
+    padding:20px;max-width:380px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.4);
+  }
+  .confirm-message{color:var(--text-main);font-size:14px;line-height:1.5;margin-bottom:16px;}
+  .confirm-actions{display:flex;justify-content:flex-end;gap:8px;}
+
+  header.top{
+    display:flex;align-items:center;justify-content:space-between;
+    border-bottom:1px solid var(--line);
+    padding-bottom:18px;margin-bottom:22px;flex-wrap:wrap;gap:12px;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand h1{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:38px;letter-spacing:2px;margin:0;color:var(--text-main);
+  }
+  .brand span{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber);
+    letter-spacing:2px;text-transform:uppercase;border:1px solid var(--amber-dim);
+    padding:3px 7px;border-radius:3px;
+  }
+  .top-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  input[type=date]{
+    font-family:'IBM Plex Mono',monospace;background:var(--surface-2);border:1px solid var(--line);
+    color:var(--text-main);padding:8px 10px;border-radius:6px;font-size:13px;
+  }
+  .btn{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.5px;
+    text-transform:uppercase;border:none;border-radius:6px;padding:9px 14px;
+    cursor:pointer;transition:transform .12s ease, filter .12s ease;
+  }
+  .btn:hover{filter:brightness(1.12);}
+  .btn:active{transform:scale(.97);}
+  .btn:disabled{opacity:.6;cursor:wait;transform:none;}
+  .btn-amber{background:var(--amber);color:#1B1200;font-weight:600;}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--text-main);}
+  .btn-ghost.active{border-color:var(--amber);color:var(--amber);}
+
+  nav.tabs{display:flex;gap:8px;margin-bottom:20px;}
+
+  /* ---------- ASSIGN VIEW ---------- */
+  .staff-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(6,auto);grid-auto-columns:minmax(300px,1fr);gap:14px;}
+  .staff-card{
+    background:var(--surface-1);border:1px solid var(--line);border-radius:10px;
+    overflow:hidden;
+  }
+  .staff-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;cursor:pointer;user-select:none;
+  }
+  .staff-name{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:var(--text-main);}
+  .badge{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:#111;
+    background:var(--muted);padding:2px 9px;border-radius:20px;font-weight:600;
+  }
+  .badge.has-tasks{background:var(--amber);}
+  .shift-badge{background:var(--surface-badge) !important;color:var(--text-secondary);font-family:'Inter',sans-serif;font-weight:600;}
+  .shift-hours-row{
+    display:flex;align-items:center;gap:8px;margin:12px 0 4px;padding-bottom:12px;
+    border-bottom:1px solid var(--line);
+  }
+  .shift-hours-row input[type=time]{
+    font-family:'IBM Plex Mono',monospace;font-size:13px;background:var(--surface-2);border:1px solid var(--line);
+    color:var(--text-main);padding:6px 8px;border-radius:6px;
+  }
+  .shift-hours-row input[type=time]:focus{outline:none;border-color:var(--amber);}
+  .chev{color:var(--muted);font-size:12px;transition:transform .15s ease;}
+  .staff-card.open .chev{transform:rotate(180deg);}
+  .staff-body{display:none;padding:0 16px 16px;border-top:1px solid var(--line);}
+  .staff-card.open .staff-body{display:block;}
+  .cat-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 10px;}
+  .cat-tab{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;
+    letter-spacing:.5px;padding:5px 9px;border-radius:20px;border:1px solid var(--line);
+    color:var(--muted);cursor:pointer;background:transparent;
+  }
+  .cat-tab.active{border-color:var(--amber);color:var(--amber);}
+  .task-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;padding-right:4px;}
+  label.task-row{
+    display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--text-secondary);
+    padding:6px 8px;border-radius:6px;cursor:pointer;border:1px solid transparent;transition:background .12s ease, border-color .12s ease;
+  }
+  label.task-row:hover{background:var(--surface-hover);}
+  label.task-row-selected{
+    background:rgba(240,162,2,.14);border-color:rgba(240,162,2,.5);color:var(--text-main);font-weight:600;
+  }
+  label.task-row-selected:hover{background:rgba(240,162,2,.20);}
+  input[type=checkbox]{accent-color:var(--amber);width:15px;height:15px;flex:none;}
+  .empty-cat{color:var(--muted);font-size:12.5px;font-style:italic;padding:6px 8px;}
+  .add-row{display:flex;gap:6px;margin-top:8px;}
+  .add-row input[type=text]{
+    flex:1;font-family:'Inter',sans-serif;font-size:13px;background:var(--surface-2);
+    border:1px solid var(--line);color:var(--text-main);padding:7px 10px;border-radius:6px;
+  }
+  .add-row input[type=text]:focus{outline:none;border-color:var(--amber);}
+  .btn-sm{padding:7px 12px;font-size:11px;}
+  .add-member-wrap{position:relative;}
+  .add-member-pop{
+    position:absolute;top:calc(100% + 8px);right:0;background:var(--surface-1);border:1px solid var(--line);
+    border-radius:8px;padding:12px;display:none;gap:8px;z-index:20;width:220px;box-shadow:0 12px 30px rgba(0,0,0,.4);
+  }
+  .add-member-pop.open{display:flex;}
+  .add-member-pop input{
+    font-family:'Inter',sans-serif;font-size:13px;background:var(--surface-2);border:1px solid var(--line);
+    color:var(--text-main);padding:7px 10px;border-radius:6px;width:100%;
+  }
+  .add-member-pop input:focus{outline:none;border-color:var(--amber);}
+  .staff-remove{
+    background:rgba(225,85,85,.14);border:1px solid rgba(225,85,85,.35);color:#E88;cursor:pointer;font-size:12px;
+    font-weight:700;padding:3px 8px;border-radius:20px;line-height:1.4;
+  }
+  .staff-remove:hover{color:#fff;background:#E15555;border-color:#E15555;}
+
+  /* ---------- CALENDAR ---------- */
+  .date-nav-wrap{position:relative;}
+  .calendar-pop{
+    position:absolute;top:calc(100% + 8px);left:0;background:var(--surface-1);border:1px solid var(--line);
+    border-radius:8px;padding:14px;display:none;flex-direction:column;z-index:30;width:250px;
+    box-shadow:0 12px 30px rgba(0,0,0,.4);
+  }
+  .calendar-pop.open{display:flex;}
+  .calendar-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .calendar-head span{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--text-main);letter-spacing:.5px;}
+  .cal-nav-btn{
+    background:transparent;border:1px solid var(--line);color:var(--text-main);width:26px;height:26px;
+    border-radius:6px;cursor:pointer;font-size:14px;line-height:1;
+  }
+  .cal-nav-btn:hover{border-color:var(--amber-dim);color:var(--amber);}
+  .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+  .cal-dow{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-align:center;
+    padding:4px 0;text-transform:uppercase;
+  }
+  .cal-day{
+    font-family:'Inter',sans-serif;font-size:12.5px;text-align:center;padding:6px 0;
+    border-radius:6px;cursor:pointer;color:var(--text-secondary);background:transparent;border:none;
+  }
+  .cal-day:hover{background:var(--surface-badge);}
+  .cal-day.other-month{color:#4A525D;}
+  .cal-day.today{box-shadow:inset 0 0 0 1px var(--amber-dim);}
+  .cal-day.selected{background:var(--amber);color:#1B1200;font-weight:600;}
+
+  /* ---------- SETTINGS ---------- */
+  .settings-wrap{position:relative;}
+  .settings-pop{
+    position:absolute;top:calc(100% + 8px);right:0;background:var(--surface-1);border:1px solid var(--line);
+    border-radius:8px;padding:14px;display:none;flex-direction:column;gap:12px;z-index:30;width:260px;
+    box-shadow:0 12px 30px rgba(0,0,0,.4);
+  }
+  .settings-pop.open{display:flex;}
+  .settings-pop label.field-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-family:'IBM Plex Mono',monospace;}
+  .settings-pop input[type=text]{
+    font-family:'Inter',sans-serif;font-size:13px;background:var(--surface-2);border:1px solid var(--line);
+    color:var(--text-main);padding:7px 10px;border-radius:6px;width:100%;margin-top:4px;
+  }
+  .settings-pop input[type=text]:focus{outline:none;border-color:var(--amber);}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .switch{position:relative;width:38px;height:21px;flex:none;}
+  .switch input{opacity:0;width:0;height:0;}
+  .switch-track{position:absolute;inset:0;background:var(--line);border-radius:20px;cursor:pointer;transition:background .15s ease;}
+  .switch input:checked + .switch-track{background:var(--amber);}
+  .switch-track::before{content:"";position:absolute;left:2px;top:2px;width:17px;height:17px;background:#fff;border-radius:50%;transition:transform .15s ease;}
+  .switch input:checked + .switch-track::before{transform:translateX(17px);}
+  .settings-hint{font-size:11px;color:var(--muted);line-height:1.4;}
+
+  /* ---------- TABS OVERFLOW ---------- */
+  nav.tabs{flex-wrap:wrap;}
+
+  /* ---------- BULK ASSIGN ---------- */
+  .bulk-picker{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+  .bulk-cat-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+  .bulk-task-select{
+    font-family:'Inter',sans-serif;font-size:14px;background:var(--surface-2);border:1px solid var(--line);
+    color:var(--text-main);padding:9px 12px;border-radius:6px;width:100%;max-width:420px;
+  }
+  .bulk-task-list{display:flex;flex-wrap:wrap;gap:8px;}
+  .bulk-task-chip{
+    font-family:'Inter',sans-serif;font-size:13px;background:var(--surface-2);border:1px solid var(--line);
+    color:var(--text-secondary);padding:8px 13px;border-radius:20px;cursor:pointer;transition:all .12s ease;
+  }
+  .bulk-task-chip:hover{border-color:var(--amber-dim);}
+  .bulk-task-chip.active{
+    background:var(--amber);border-color:var(--amber);color:#1B1200;font-weight:700;
+  }
+  .bulk-staff-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(6,auto);grid-auto-columns:minmax(160px,1fr);gap:8px;margin-top:16px;}
+  .bulk-staff-row-wrap{
+    display:flex;align-items:center;gap:6px;background:var(--surface-1);border:1px solid var(--line);
+    padding:9px 11px;border-radius:8px;
+  }
+  .bulk-staff-row-wrap:hover{border-color:var(--amber-dim);}
+  label.bulk-staff-row{
+    display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text-secondary);
+    cursor:pointer;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+
+  /* ---------- MANAGE ---------- */
+  .manage-cat{background:var(--surface-1);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px;}
+  .manage-cat h4{font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:1px;margin:0 0 10px;color:var(--text-main);}
+  .manage-cat-head{
+    display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;margin-bottom:4px;
+  }
+  .manage-cat-head h4{margin:0;}
+  .manage-cat-head .chev{transition:transform .15s ease;}
+  .manage-cat-head .chev.open{transform:rotate(180deg);}
+  .manage-task-row{
+    display:flex;align-items:center;gap:6px;font-size:13.5px;
+    color:var(--text-secondary);padding:6px 8px;border-radius:6px;
+  }
+  .manage-task-row span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .manage-task-row:hover{background:var(--surface-hover);}
+  .manage-task-remove{
+    background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px;flex:none;
+  }
+  .manage-task-remove:hover{color:#E15555;background:rgba(225,85,85,.12);}
+  .manage-task-edit{
+    background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:4px;flex:none;
+  }
+  .manage-task-edit:hover{color:var(--amber);background:rgba(240,162,2,.12);}
+  .manage-task-editing{gap:6px;}
+  .manage-edit-input{
+    flex:1;min-width:0;font-family:'Inter',sans-serif;font-size:13px;background:var(--surface-2);
+    border:1px solid var(--amber-dim);color:var(--text-main);padding:5px 8px;border-radius:5px;
+  }
+  .manage-edit-input:focus{outline:none;border-color:var(--amber);}
+  .manage-task-save{
+    background:transparent;border:none;color:#6FCBAF;cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;flex:none;font-weight:700;
+  }
+  .manage-task-save:hover{background:rgba(46,125,107,.18);}
+  .manage-day-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px;align-items:stretch;}
+  .manage-day-group{
+    background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:10px 10px 8px;
+    display:flex;flex-direction:column;min-width:0;transition:border-color .15s ease, background .15s ease;
+  }
+  .manage-day-group.active-day{
+    background:rgba(240,162,2,.10);border:1.5px solid var(--amber);
+  }
+  .manage-day-label{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--amber);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:6px;
+  }
+  .active-tick{color:#6FCBAF;font-family:'Inter',sans-serif;text-transform:none;letter-spacing:0;font-size:10.5px;font-weight:700;}
+  .bulk-day-select.task-selected, .bulk-task-select.task-selected{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber);background:#262012;}
+  body[data-theme="light"] .bulk-day-select.task-selected,
+  body[data-theme="light"] .bulk-task-select.task-selected{background:#FFF3DE;color:var(--text-main);}
+  .manage-day-group .manage-task-row{font-size:12.5px;padding:5px 6px;}
+  .manage-day-group .add-row{margin-top:auto;padding-top:10px;min-width:0;}
+  .bulk-day-staff{display:flex;flex-direction:column;gap:4px;margin-top:8px;}
+  .bulk-day-staff-row{
+    display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer;
+    padding:3px 4px;border-radius:5px;
+  }
+  .bulk-day-staff-row:hover{background:var(--surface-hover);}
+  .manage-day-group .add-row input[type=text]{min-width:0;width:0;flex:1 1 auto;}
+  .manage-day-group .add-row button{flex:none;}
+
+  /* ---------- HISTORY ---------- */
+  .history-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  .history-table th,.history-table td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);}
+  .history-table th{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);}
+  .history-table tr:hover td{background:var(--surface-1);}
+  .history-wrap{background:var(--surface-1);border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .matrix-table{border-collapse:collapse;}
+  .matrix-th{
+    writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:none;
+    letter-spacing:0;padding:8px 6px;max-height:140px;vertical-align:bottom;
+  }
+  .matrix-cell{text-align:center;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;}
+  .matrix-done{color:#6FCBAF;background:rgba(46,125,107,.15);}
+  .matrix-pending{color:var(--amber);background:rgba(240,162,2,.12);}
+  .matrix-na{color:var(--muted);font-weight:400;}
+  .matrix-date-row td{
+    background:var(--surface-2);color:var(--amber);font-family:'IBM Plex Mono',monospace;
+    font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;
+  }
+  .matrix-pct{color:var(--text-main);background:var(--surface-hover);font-family:'Inter',sans-serif;font-weight:700;}
+  .hours-input{
+    font-family:'Inter',sans-serif;font-size:13px;background:var(--surface-2);border:1px solid var(--line);
+    color:var(--text-main);padding:6px 8px;border-radius:6px;
+  }
+  .hours-input:focus{outline:none;border-color:var(--amber);}
+
+  /* ---------- GANTT ---------- */
+  .gantt-wrap{background:var(--surface-1);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:20px;}
+  .gantt-axis{display:flex;margin-left:120px;position:relative;height:16px;font-family:'Inter',sans-serif;font-size:10px;font-weight:600;color:var(--muted);}
+  .gantt-axis span{position:absolute;transform:translateX(-50%);}
+  .gantt-axis span:first-child{transform:translateX(0);}
+  .gantt-axis span:last-child{transform:translateX(-100%);}
+  .gantt-body{margin-top:4px;}
+  .gantt-row{display:flex;align-items:center;gap:0;margin-top:10px;}
+  .gantt-label{width:120px;flex:none;font-size:12.5px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px;}
+  .gantt-track{position:relative;flex:1;height:24px;background:var(--surface-2);border-radius:5px;}
+  .gantt-grid-line{position:absolute;top:0;bottom:0;width:1.5px;background:#6B7684;}
+  .gantt-bar{
+    position:absolute;top:2px;bottom:2px;background:var(--amber);border-radius:4px;
+    font-family:'Inter',sans-serif;font-size:10px;color:#1B1200;font-weight:700;
+    display:flex;align-items:center;justify-content:space-between;overflow:hidden;padding:0 5px;
+  }
+  .gantt-bar-start, .gantt-bar-end{white-space:nowrap;}
+  .gantt-bar::before, .gantt-bar::after{
+    content:"";position:absolute;top:-4px;bottom:-4px;width:3px;background:#1B1200;border-radius:2px;
+  }
+  .gantt-bar::before{left:0;}
+  .gantt-bar::after{right:0;}
+  .gantt-empty{color:var(--muted);font-size:12px;padding:4px 0;}
+
+  /* ---------- DASHBOARD ---------- */
+  .dash-summary{
+    display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;
+  }
+  .dash-stat{
+    background:var(--surface-1);border:1px solid var(--line);border-radius:10px;padding:14px 20px;min-width:120px;
+  }
+  .dash-stat .num{font-family:'Bebas Neue',sans-serif;font-size:32px;color:#fff;line-height:1;}
+  .dash-stat .lbl{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px;}
+  .dash-columns-wrap{background:var(--surface-1);border:1px solid var(--line);border-radius:10px;overflow-x:auto;}
+  .dash-columns{display:flex;min-width:min-content;}
+  .dash-col{flex:1;min-width:160px;padding:14px 14px 16px;border-right:1px solid var(--line);}
+  .dash-col:last-child{border-right:none;}
+  .dash-col-header{text-align:center;padding-bottom:10px;margin-bottom:12px;border-bottom:1px solid var(--line);}
+  .dash-name{
+    font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:1px;color:#fff;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .dash-hours{font-family:'Inter',sans-serif;font-size:10.5px;color:var(--muted);margin-top:2px;}
+  .dash-tiles{display:flex;flex-direction:column;gap:7px;}
+  .dash-tile{
+    background:rgba(46,125,107,.22);color:#7FDBC0;border:1px solid rgba(111,203,175,.45);
+    border-radius:6px;padding:8px 10px;font-size:12.5px;text-align:center;line-height:1.3;
+  }
+
+  /* Dashboard runs on a white background, so override the dark-theme colors used by its
+     shared components (stat cards, columns, empty states) for readability. */
+  #dashboardView{background:#fff;border-radius:12px;padding:20px;}
+  #dashboardView .no-tasks{color:#374151;}
+  #dashboardView .dash-stat{background:#F4F6F8;border:1px solid #E2E6EA;}
+  #dashboardView .dash-stat .num{color:#1B2430;}
+  #dashboardView .dash-stat .lbl{color:#374151;}
+  #dashboardView .settings-hint{color:#374151;}
+  #dashboardView .dash-columns-wrap{background:#fff;border:1px solid #E2E6EA;}
+  #dashboardView .dash-col{border-right:1px solid #E2E6EA;}
+  #dashboardView .dash-col-header{border-bottom:1px solid #E2E6EA;}
+  #dashboardView .dash-name{color:#1B2430;}
+  #dashboardView .dash-hours{color:#374151;font-weight:600;font-size:12px;letter-spacing:0.8px;margin-top:7px;}
+  #dashboardView .dash-tile{
+    background:#E4F5EF;color:#0F5C43;border:1px solid #9FDCC3;font-weight:600;
+  }
+  #dashboardView .gantt-empty{color:#374151;}
+  #dashboardView .gantt-wrap{background:#F4F6F8;border:1px solid #E2E6EA;}
+  #dashboardView .gantt-axis span{color:#374151;}
+  #dashboardView .gantt-label{color:#1B2430;}
+  #dashboardView .gantt-track{background:#E2E6EA;}
+  #dashboardView .gantt-bar::before, #dashboardView .gantt-bar::after{background:#0F5C43;}
+  #dashboardView .gantt-grid-line{background:#9AA5B1;}
+  #dashboardView .dash-stat .lbl-primary{
+    font-family:'Inter',sans-serif;font-size:12.5px;font-weight:700;text-transform:none;
+    letter-spacing:0;color:#000;
+  }
+  .hist-chip{
+    display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:11px;
+    padding:3px 8px;border-radius:20px;margin:2px 4px 2px 0;white-space:nowrap;
+  }
+  .hist-chip-assigned{background:var(--surface-badge);color:var(--text-secondary);}
+  .hist-chip-done{background:rgba(46,125,107,.25);color:#6FCBAF;}
+  .hist-chip-pending{background:rgba(240,162,2,.18);color:var(--amber);}
+  .hist-dash{color:var(--muted);}
+
+  /* ---------- TEMPLATES ---------- */
+  .template-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  select.tpl-select{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;background:var(--surface-2);border:1px solid var(--line);
+    color:var(--text-main);padding:8px 10px;border-radius:6px;
+  }
+
+  /* ---------- TICKETS VIEW ---------- */
+  .ticket-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+  .ticket-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;}
+  @media (max-width:880px){ .ticket-grid{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:560px){ .ticket-grid{grid-template-columns:1fr;} }
+  .ticket{
+    background:var(--paper);color:#1B2430;border-radius:2px;
+    padding:22px 20px 18px;position:relative;
+    box-shadow:0 10px 24px rgba(0,0,0,.35), 0 0 0 6px var(--paper-shadow) inset;
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .ticket::before,.ticket::after{
+    content:"";position:absolute;left:0;right:0;height:10px;
+    background:
+      linear-gradient(135deg, transparent 50%, var(--shell-2) 50%) 0 0/12px 12px repeat-x,
+      linear-gradient(-135deg, transparent 50%, var(--shell-2) 50%) 0 0/12px 12px repeat-x;
+    background-position: 0 0, 6px 0;
+  }
+  .ticket::before{top:-1px;}
+  .ticket::after{bottom:-1px;transform:rotate(180deg);}
+  .ticket h3{
+    font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;margin:6px 0 0;
+  }
+  .ticket .sub{font-size:11px;color:#5A5340;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;}
+  .ticket .shift-line{font-family:'Inter',sans-serif;font-weight:600;font-size:11.5px;color:#5A5340;margin:-8px 0 12px;}
+  .ticket ul{list-style:none;margin:0;padding:0;}
+  .ticket li{
+    display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:5px 0;
+    border-bottom:1px dashed #D8CFB6;
+  }
+  .ticket li.done{opacity:.55;text-decoration:line-through;}
+  .ticket li .box{width:12px;height:12px;border:1.5px solid #1B2430;margin-top:2px;flex:none;cursor:pointer;}
+  .ticket li .box.checked{background:#1B2430;}
+  .ticket .li-content{display:flex;flex-direction:column;flex:1;}
+  .ticket .delivery-time-row{font-size:10.5px;color:#5A5340;margin-top:3px;}
+  .ticket .notes-line{font-size:11px;color:#5A5340;margin-top:10px;}
+  .ticket .foot{margin-top:16px;padding-top:10px;border-top:1px dashed #D8CFB6;font-size:10.5px;color:#5A5340;display:flex;justify-content:space-between;}
+  .no-tasks{color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:13px;padding:30px 0;text-align:center;}
+
+  @media print{
+    body{background:#fff;}
+    header.top,nav.tabs,.ticket-toolbar,.staff-grid{display:none !important;}
+    .app{padding:0;max-width:none;}
+    .ticket-grid{display:block;}
+    .ticket{
+      box-shadow:none;border:1px solid #ccc;
+      break-inside:avoid;page-break-after:always;margin:0 auto 0;max-width:420px;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <div class="login-title">SHIFT DOCKET</div>
+    <div class="login-subtitle">Sign in to continue</div>
+    <form id="loginForm">
+      <label class="field-label" style="display:block;margin-bottom:4px;">Email</label>
+      <input type="email" id="loginEmail" class="login-input" autocomplete="email" required>
+      <label class="field-label" style="display:block;margin:12px 0 4px;">Password</label>
+      <input type="password" id="loginPassword" class="login-input" autocomplete="current-password" required>
+      <div id="loginError" class="login-error"></div>
+      <button type="submit" class="btn btn-amber" style="width:100%;margin-top:16px;" id="loginSubmitBtn">Log in</button>
+    </form>
+  </div>
+</div>
+
+<div class="app" id="mainApp" style="display:none;">
+  <header class="top">
+    <div class="brand">
+      <h1>SHIFT DOCKET</h1>
+      <span id="dateLabel">—</span>
+    </div>
+    <div class="top-controls">
+      <div class="date-nav-wrap">
+        <button class="btn btn-ghost" id="dateNavBtn">📅 <span id="dateNavLabel"></span></button>
+        <div class="calendar-pop" id="calendarPop">
+          <div class="calendar-head">
+            <button class="cal-nav-btn" id="calPrevBtn">‹</button>
+            <span id="calMonthLabel"></span>
+            <button class="cal-nav-btn" id="calNextBtn">›</button>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+          <button class="btn btn-ghost btn-sm" id="calTodayBtn" style="width:100%;margin-top:8px;">Today</button>
+        </div>
+      </div>
+      <div class="add-member-wrap">
+        <button class="btn btn-amber" id="addMemberBtn">+ Team member</button>
+        <div class="add-member-pop" id="addMemberPop">
+          <input type="text" id="newMemberInput" placeholder="Full name" maxlength="40">
+          <button class="btn btn-ghost btn-sm" id="confirmAddMember">Add to roster</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="clearDayBtn">Clear day</button>
+      <div class="settings-wrap">
+        <button class="btn btn-ghost" id="settingsBtn">⚙ Settings</button>
+        <div class="settings-pop" id="settingsPop">
+          <div>
+            <label class="field-label">Shop name (shown on tickets)</label>
+            <input type="text" id="shopNameInput" maxlength="50" placeholder="e.g. Riverside Store">
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div style="font-size:13px;color:var(--text-main);">Light mode</div>
+              <div class="settings-hint">Switch the app's look between dark and light.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="lightModeToggle">
+              <span class="switch-track"></span>
+            </label>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="logoutBtn" style="width:100%;">Log out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="btn btn-ghost" data-view="dashboard">📊 Dashboard</button>
+    <button class="btn btn-ghost" data-view="bulk">Bulk assign</button>
+    <button class="btn btn-ghost active" data-view="assign">Assign</button>
+    <button class="btn btn-ghost" data-view="tickets">Tickets</button>
+    <button class="btn btn-ghost" data-view="manage">Manage tasks</button>
+    <button class="btn btn-ghost" data-view="history">History</button>
+    <button class="btn btn-ghost" data-view="weekly">📅 Weekly</button>
+  </nav>
+
+  <section id="dashboardView" style="display:none"></section>
+  <section id="assignView"></section>
+  <section id="bulkView" style="display:none"></section>
+  <section id="ticketsView" style="display:none"></section>
+  <section id="manageView" style="display:none"></section>
+  <section id="historyView" style="display:none"></section>
+  <section id="weeklyView" style="display:none"></section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ============================================================================
+// STORAGE SETUP — fill these in with your own Supabase project's details.
+// See the setup instructions that came with this file for exactly where to
+// find these two values (Project Settings > API in your Supabase dashboard).
+// ============================================================================
+const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+(function(){
+  // Drop-in replacement for the storage API this app was originally built against —
+  // same method names and shapes, just backed by a real database instead of Claude's
+  // artifact storage. Every part of the app below this line is completely unchanged.
+  window.storage = {
+    async get(key, shared){
+      const { data, error } = await sb.from('kv_store').select('value').eq('key', key).maybeSingle();
+      if(error) throw new Error('Storage get failed: ' + error.message);
+      if(!data) return null;
+      return { key, value: data.value, shared: !!shared };
+    },
+    async set(key, value, shared){
+      const { error } = await sb.from('kv_store').upsert({ key, value, updated_at: new Date().toISOString() });
+      if(error) throw new Error('Storage set failed: ' + error.message);
+      return { key, value, shared: !!shared };
+    },
+    async delete(key, shared){
+      const { error } = await sb.from('kv_store').delete().eq('key', key);
+      if(error) throw new Error('Storage delete failed: ' + error.message);
+      return { key, deleted: true, shared: !!shared };
+    },
+    async list(prefix, shared){
+      let query = sb.from('kv_store').select('key');
+      if(prefix) query = query.like('key', prefix + '%');
+      const { data, error } = await query;
+      if(error) throw new Error('Storage list failed: ' + error.message);
+      return { keys: (data || []).map(r => r.key), prefix, shared: !!shared };
+    }
+  };
+})();
+// ============================================================================
+// END STORAGE SETUP — everything below is the original app, unmodified.
+// ============================================================================
+
+const DEFAULT_STAFF = ["Abby","Charlotte","Darcy","Elaine","Emma","Julie","Kadija","Kevin","Kian","Mia G","Mia L","Mo","Molly","Sangeetha","Sonny","Trishna","Yas","Zin"];
+
+const CATEGORIES = {
+  "Daily": ["Start of the day","Chilled food morning check","Chilled food afternoon check","Deliveroo","In store pick","Pull back forward","Cash up","End of the day","Baskets","Filling the ends"],
+  "Every other day": ["Delivery","Food Delivery","Overs","Cages & Bins"],
+  "Random": ["Recall","Clearance"],
+  "Weekly": ["Fire test","Chiller cleaning","Parcel return","Cleaning stock room","Cleaning the backyard","Cleaning the photo cupboard","Date checking","Low fill","Gap scanning"],
+  "Fortnightly": ["Sales plan"],
+  "Monthly": ["Rebuild"],
+  "Low Fill": ["Self-Selection","Premium/No7","Chemist","Healthcare","Inco/Tissues","Skincare","Accessories","Electrical","Hair Accessories","Fragrance","Haircare","Sun/Xmas","Sun Tans","Fake Tans","Mens","Toiletries","Dental","Wellness","Femcare","Deodorants","Baby","Photo","Hosiery","Snacking","IQM","AYR Gift","Drinks","Weight Management"],
+  "Gap Scan": ["Self-Selection","Premium/No7","Chemist","Healthcare","Inco/Tissues","Skincare","Accessories","Electrical","Hair Accessories","Fragrance","Haircare","Sun/Xmas","Sun Tans","Fake Tans","Mens","Toiletries","Dental","Wellness","Femcare","Deodorants","Baby","Photo","Hosiery","Snacking","IQM","AYR Gift","Drinks","Weight Management"]
+};
+const CAT_NAMES = Object.keys(CATEGORIES);
+
+// For categories whose tasks naturally fall on specific days of the week (per the
+// physical planner board), this maps category -> { Day: [task, ...] } for display
+// grouping in Manage Tasks. Categories not listed here just show a flat list.
+const CATEGORY_DAY_GROUPS = {
+  "Low Fill": {
+    "Sunday": ["Self-Selection","Premium/No7","Chemist","Healthcare","Inco/Tissues"],
+    "Monday": ["Self-Selection","Premium/No7","Skincare","Accessories","Electrical","Hair Accessories"],
+    "Tuesday": ["Self-Selection","Premium/No7","Fragrance","Haircare","Sun/Xmas","Sun Tans","Fake Tans"],
+    "Wednesday": ["Self-Selection","Premium/No7","Mens","Toiletries","Dental","Wellness","Femcare","Deodorants"],
+    "Thursday": ["Self-Selection","Premium/No7","Baby","Photo","Hosiery"],
+    "Friday": ["Self-Selection","Premium/No7","Snacking","IQM","AYR Gift","Drinks","Weight Management"],
+    "Saturday": []
+  },
+  "Gap Scan": {
+    "Monday": ["Self-Selection","Premium/No7","Chemist","Healthcare","Inco/Tissues"],
+    "Tuesday": ["Self-Selection","Premium/No7","Skincare","Accessories","Electrical","Hair Accessories"],
+    "Wednesday": ["Self-Selection","Premium/No7","Fragrance","Haircare","Sun/Xmas","Sun Tans","Fake Tans"],
+    "Thursday": ["Self-Selection","Premium/No7","Mens","Toiletries","Dental","Wellness","Femcare","Deodorants"],
+    "Friday": ["Self-Selection","Premium/No7","Baby","Photo","Hosiery"],
+    "Saturday": ["Self-Selection","Premium/No7","Snacking","Drinks"]
+  }
+};
+
+let STAFF = DEFAULT_STAFF.slice();
+let customTasks = {}; // { category: [task, ...] }
+let hiddenTasks = {};  // { category: [task, ...] } - default tasks the manager deleted
+let dayCustomTasks = {}; // { "category|Day": [task, ...] } - tasks added under one specific day box
+let dayHiddenTasks = {}; // { "category|Day": [task, ...] } - tasks hidden from one specific day box
+let templates = {};    // { templateName: { staffName: [task,...] } }
+let autoApplyTemplate = ''; // name of the template to auto-apply on any day with no assignments yet
+let shopName = '';
+let sharedMode = false;
+let theme = 'dark'; // 'dark' | 'light' — a device-local display preference, not synced data
+let completions = {};  // per-day: { staffName: [task,...] } tasks marked done
+let shiftHours = {};   // per-day: { staffName: {start:"HH:MM", end:"HH:MM"} }
+let workingToday = []; // per-day: [staffName, ...] who are rostered in for the current day
+
+function tasksFor(cat){
+  const hidden = hiddenTasks[cat] || [];
+  let all = CATEGORIES[cat].concat(customTasks[cat] || []);
+  // Fold in anything added specifically under one of this category's day boxes,
+  // so it's still assignable/countable everywhere else in the app.
+  if(CATEGORY_DAY_GROUPS[cat]){
+    Object.keys(CATEGORY_DAY_GROUPS[cat]).forEach(day=>{
+      const extra = dayCustomTasks[cat + '|' + day] || [];
+      extra.forEach(t=>{ if(!all.includes(t)) all.push(t); });
+    });
+  }
+  return all.filter(t => !hidden.includes(t));
+}
+
+function tasksForDay(cat, day){
+  const key = cat + '|' + day;
+  const base = (CATEGORY_DAY_GROUPS[cat] && CATEGORY_DAY_GROUPS[cat][day]) || [];
+  const hidden = dayHiddenTasks[key] || [];
+  const custom = dayCustomTasks[key] || [];
+  const globallyHidden = hiddenTasks[cat] || [];
+  const combined = [...base, ...custom].filter(t => !hidden.includes(t) && !globallyHidden.includes(t));
+  return [...new Set(combined)];
+}
+
+// Short prefixes used on tickets/PDF/History for day-grouped categories, e.g. "LF Self-Selection"
+const CATEGORY_ABBREV = { "Low Fill": "LF", "Gap Scan": "GS" };
+
+// Day-box assignments are stored internally as "LF Self-Selection (Thursday)" so the same
+// task on two different days stays independent — but everywhere staff actually SEE the task
+// (tickets, PDF, dashboard, history), we strip the trailing day marker back off again.
+function displayTaskName(name){
+  return String(name).replace(/ \([^()]+\)$/, '');
+}
+
+let currentDate = new Date().toISOString().slice(0,10);
+let assignments = {}; // { staffName: [task, ...] }
+let openCat = {};      // { staffName: categoryName }
+let view = 'assign';
+let bulkCat = CAT_NAMES[0];
+let bulkTask = '';
+let bulkDayTask = {}; // { "category|Day": task } - independent task selection per day box
+let historyDay = null; // selected date (YYYY-MM-DD) for the History task matrix; null = default to today
+let manageCollapsed = {}; // { category: true } - day-grouped categories currently collapsed in Manage Tasks
+let editingTaskKey = null; // uniquely identifies the single task row currently in inline-edit mode
+
+const dateLabel = document.getElementById('dateLabel');
+const dateNavBtn = document.getElementById('dateNavBtn');
+const dateNavLabel = document.getElementById('dateNavLabel');
+const calendarPop = document.getElementById('calendarPop');
+const calendarGrid = document.getElementById('calendarGrid');
+const calMonthLabel = document.getElementById('calMonthLabel');
+let calViewYear, calViewMonth; // the month/year currently shown in the calendar popover (0-indexed month)
+
+function fmtDateLabel(d){
+  const dt = new Date(d+'T00:00:00');
+  return dt.toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric', year:'numeric'});
+}
+
+function fmtDateShort(d){
+  const dt = new Date(d+'T00:00:00');
+  return dt.toLocaleDateString(undefined,{month:'short', day:'numeric', year:'numeric'});
+}
+
+function toDateStr(y,m,day){
+  const mm = String(m+1).padStart(2,'0');
+  const dd = String(day).padStart(2,'0');
+  return `${y}-${mm}-${dd}`;
+}
+
+function renderCalendarPopover(){
+  const todayStr = new Date().toISOString().slice(0,10);
+  const first = new Date(calViewYear, calViewMonth, 1);
+  const startWeekday = first.getDay(); // 0=Sun
+  const daysInMonth = new Date(calViewYear, calViewMonth+1, 0).getDate();
+  const daysInPrevMonth = new Date(calViewYear, calViewMonth, 0).getDate();
+
+  calMonthLabel.textContent = first.toLocaleDateString(undefined,{month:'long', year:'numeric'});
+
+  const dowNames = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  let html = dowNames.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+
+  // leading days from previous month
+  for(let i=startWeekday-1;i>=0;i--){
+    const day = daysInPrevMonth - i;
+    const m = calViewMonth===0 ? 11 : calViewMonth-1;
+    const y = calViewMonth===0 ? calViewYear-1 : calViewYear;
+    html += `<button class="cal-day other-month" data-caldate="${toDateStr(y,m,day)}">${day}</button>`;
+  }
+  // this month
+  for(let day=1; day<=daysInMonth; day++){
+    const dateStr = toDateStr(calViewYear, calViewMonth, day);
+    const classes = ['cal-day'];
+    if(dateStr === todayStr) classes.push('today');
+    if(dateStr === currentDate) classes.push('selected');
+    html += `<button class="${classes.join(' ')}" data-caldate="${dateStr}">${day}</button>`;
+  }
+  // trailing days from next month to fill the grid to a multiple of 7
+  const totalCells = startWeekday + daysInMonth;
+  const trailing = (7 - (totalCells % 7)) % 7;
+  for(let day=1; day<=trailing; day++){
+    const m = calViewMonth===11 ? 0 : calViewMonth+1;
+    const y = calViewMonth===11 ? calViewYear+1 : calViewYear;
+    html += `<button class="cal-day other-month" data-caldate="${toDateStr(y,m,day)}">${day}</button>`;
+  }
+
+  calendarGrid.innerHTML = html;
+  calendarGrid.querySelectorAll('[data-caldate]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      currentDate = btn.dataset.caldate;
+      calendarPop.classList.remove('open');
+      loadDay(currentDate);
+    });
+  });
+}
+
+function openCalendarAt(dateStr){
+  const dt = new Date(dateStr+'T00:00:00');
+  calViewYear = dt.getFullYear();
+  calViewMonth = dt.getMonth();
+  renderCalendarPopover();
+}
+
+async function loadSharedModePref(){
+  try{
+    const res = await window.storage.get('shared-mode-pref', false);
+    sharedMode = res ? JSON.parse(res.value) : false;
+  }catch(e){
+    sharedMode = false;
+  }
+}
+
+async function saveSharedModePref(){
+  try{ await window.storage.set('shared-mode-pref', JSON.stringify(sharedMode), false); }
+  catch(e){ console.error('save shared-mode pref failed', e); }
+}
+
+async function loadThemePref(){
+  try{
+    const res = await window.storage.get('theme-pref', false);
+    theme = res ? JSON.parse(res.value) : 'dark';
+  }catch(e){
+    theme = 'dark';
+  }
+}
+
+async function saveThemePref(){
+  try{ await window.storage.set('theme-pref', JSON.stringify(theme), false); }
+  catch(e){ console.error('save theme pref failed', e); }
+}
+
+function applyTheme(){
+  document.body.dataset.theme = theme;
+}
+
+async function loadRosterAndTasks(){
+  try{
+    const res = await window.storage.get('staff-list', sharedMode);
+    STAFF = res ? JSON.parse(res.value) : DEFAULT_STAFF.slice();
+  }catch(e){
+    STAFF = DEFAULT_STAFF.slice();
+  }
+  STAFF.sort((a,b)=>a.localeCompare(b));
+  try{
+    const res2 = await window.storage.get('custom-tasks', sharedMode);
+    customTasks = res2 ? JSON.parse(res2.value) : {};
+  }catch(e){
+    customTasks = {};
+  }
+  try{
+    const res3 = await window.storage.get('hidden-tasks', sharedMode);
+    hiddenTasks = res3 ? JSON.parse(res3.value) : {};
+  }catch(e){
+    hiddenTasks = {};
+  }
+  try{
+    const res4 = await window.storage.get('templates', sharedMode);
+    templates = res4 ? JSON.parse(res4.value) : {};
+  }catch(e){
+    templates = {};
+  }
+  try{
+    const res4b = await window.storage.get('auto-apply-template', sharedMode);
+    autoApplyTemplate = res4b ? JSON.parse(res4b.value) : '';
+  }catch(e){
+    autoApplyTemplate = '';
+  }
+  try{
+    const res6 = await window.storage.get('day-custom-tasks', sharedMode);
+    dayCustomTasks = res6 ? JSON.parse(res6.value) : {};
+  }catch(e){
+    dayCustomTasks = {};
+  }
+  try{
+    const res7 = await window.storage.get('day-hidden-tasks', sharedMode);
+    dayHiddenTasks = res7 ? JSON.parse(res7.value) : {};
+  }catch(e){
+    dayHiddenTasks = {};
+  }
+  try{
+    const res5 = await window.storage.get('shop-name', sharedMode);
+    shopName = res5 ? JSON.parse(res5.value) : '';
+  }catch(e){
+    shopName = '';
+  }
+}
+
+async function saveRoster(){
+  return trackWrite(async () => {
+    try{ await window.storage.set('staff-list', JSON.stringify(STAFF), sharedMode); }
+    catch(e){ console.error('save roster failed', e); }
+  });
+}
+
+async function saveCustomTasks(){
+  return trackWrite(async () => {
+    try{ await window.storage.set('custom-tasks', JSON.stringify(customTasks), sharedMode); }
+    catch(e){ console.error('save tasks failed', e); }
+  });
+}
+
+async function saveHiddenTasks(){
+  return trackWrite(async () => {
+    try{ await window.storage.set('hidden-tasks', JSON.stringify(hiddenTasks), sharedMode); }
+    catch(e){ console.error('save hidden tasks failed', e); }
+  });
+}
+
+async function saveDayCustomTasks(){
+  return trackWrite(async () => {
+    try{ await window.storage.set('day-custom-tasks', JSON.stringify(dayCustomTasks), sharedMode); }
+    catch(e){ console.error('save day-custom tasks failed', e); }
+  });
+}
+
+async function saveDayHiddenTasks(){
+  return trackWrite(async () => {
+    try{ await window.storage.set('day-hidden-tasks', JSON.stringify(dayHiddenTasks), sharedMode); }
+    catch(e){ console.error('save day-hidden tasks failed', e); }
+  });
+}
+
+function addDayTask(cat, day, task){
+  task = task.trim();
+  if(!task) return;
+  const key = cat + '|' + day;
+  const existing = tasksForDay(cat, day).map(t => t.toLowerCase());
+  if(existing.includes(task.toLowerCase())){
+    showNotice(`"${task}" is already listed under ${day}.`);
+    return;
+  }
+  if(!dayCustomTasks[key]) dayCustomTasks[key] = [];
+  dayCustomTasks[key].push(task);
+  saveDayCustomTasks();
+  render();
+}
+
+function removeDayTask(cat, day, task){
+  const key = cat + '|' + day;
+  const customIdx = (dayCustomTasks[key] || []).indexOf(task);
+  if(customIdx > -1){
+    dayCustomTasks[key].splice(customIdx, 1);
+    saveDayCustomTasks();
+  } else {
+    if(!dayHiddenTasks[key]) dayHiddenTasks[key] = [];
+    if(!dayHiddenTasks[key].includes(task)) dayHiddenTasks[key].push(task);
+    saveDayHiddenTasks();
+  }
+  render();
+}
+
+async function saveTemplates(){
+  return trackWrite(async () => {
+    try{ await window.storage.set('templates', JSON.stringify(templates), sharedMode); }
+    catch(e){ console.error('save templates failed', e); }
+  });
+}
+
+async function saveAutoApplyTemplate(){
+  return trackWrite(async () => {
+    try{ await window.storage.set('auto-apply-template', JSON.stringify(autoApplyTemplate), sharedMode); }
+    catch(e){ console.error('save auto-apply template failed', e); }
+  });
+}
+
+async function saveShopName(){
+  return trackWrite(async () => {
+    try{ await window.storage.set('shop-name', JSON.stringify(shopName), sharedMode); }
+    catch(e){ console.error('save shop name failed', e); }
+  });
+}
+
+function hideTask(cat, task){
+  const isCustom = (customTasks[cat] || []).includes(task);
+  if(isCustom){
+    customTasks[cat] = customTasks[cat].filter(t => t !== task);
+    saveCustomTasks();
+  } else {
+    if(!hiddenTasks[cat]) hiddenTasks[cat] = [];
+    if(!hiddenTasks[cat].includes(task)) hiddenTasks[cat].push(task);
+    saveHiddenTasks();
+  }
+  render();
+}
+
+function addMember(name){
+  name = name.trim();
+  if(!name) return;
+  if(STAFF.some(s => s.toLowerCase() === name.toLowerCase())){
+    showNotice(name + ' is already on the roster.');
+    return;
+  }
+  STAFF.push(name);
+  STAFF.sort((a,b)=>a.localeCompare(b));
+  saveRoster();
+  render();
+}
+
+// A custom confirmation dialog. Sandboxed iframes (like this artifact's preview) can silently
+// block the native window.confirm() popup, which would make delete buttons look like they
+// "do nothing" — this renders our own in-page dialog instead, so it always works.
+// Same reasoning as showConfirmModal — native showNotice() can be silently blocked in a
+// sandboxed iframe, so this shows an in-page notice that always renders.
+function showNotice(message){
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box">
+      <div class="confirm-message">${message}</div>
+      <div class="confirm-actions">
+        <button class="btn btn-amber btn-sm" id="noticeOkBtn">OK</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  function close(){
+    if(overlay.parentNode) document.body.removeChild(overlay);
+  }
+  overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) close(); });
+  document.getElementById('noticeOkBtn').addEventListener('click', close);
+}
+
+// Same reasoning again — native prompt() can be blocked the same way as confirm()/alert().
+function showPromptModal(message, onSubmit, placeholder){
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box">
+      <div class="confirm-message">${message}</div>
+      <input type="text" class="hours-input" id="promptModalInput" style="width:100%;margin-bottom:16px;" placeholder="${placeholder || ''}" maxlength="60">
+      <div class="confirm-actions">
+        <button class="btn btn-ghost btn-sm" id="promptCancelBtn">Cancel</button>
+        <button class="btn btn-amber btn-sm" id="promptOkBtn">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const input = document.getElementById('promptModalInput');
+  input.focus();
+  function close(){
+    if(overlay.parentNode) document.body.removeChild(overlay);
+  }
+  function submit(){
+    const val = input.value.trim();
+    close();
+    if(val) onSubmit(val);
+  }
+  overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) close(); });
+  document.getElementById('promptCancelBtn').addEventListener('click', close);
+  document.getElementById('promptOkBtn').addEventListener('click', submit);
+  input.addEventListener('keydown', (ev)=>{ if(ev.key === 'Enter') submit(); if(ev.key === 'Escape') close(); });
+}
+
+function showConfirmModal(message, onConfirm){
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box">
+      <div class="confirm-message">${message}</div>
+      <div class="confirm-actions">
+        <button class="btn btn-ghost btn-sm" id="confirmCancelBtn">Cancel</button>
+        <button class="btn btn-amber btn-sm" id="confirmOkBtn">Confirm</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  function close(){
+    if(overlay.parentNode) document.body.removeChild(overlay);
+  }
+  overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) close(); });
+  document.getElementById('confirmCancelBtn').addEventListener('click', close);
+  document.getElementById('confirmOkBtn').addEventListener('click', ()=>{
+    close();
+    onConfirm();
+  });
+}
+
+function removeMember(name){
+  showConfirmModal('Remove ' + name + ' from the roster? Their existing ticket history stays saved by date, but they will no longer appear in Assign.', ()=>{
+    STAFF = STAFF.filter(s => s !== name);
+    if(assignments[name]){ delete assignments[name]; saveDay(); }
+    saveRoster();
+    render();
+  });
+}
+
+function addTask(cat, task){
+  task = task.trim();
+  if(!task) return;
+  const existing = tasksFor(cat).map(t=>t.toLowerCase());
+  if(existing.includes(task.toLowerCase())){
+    showNotice('"' + task + '" is already in ' + cat + '.');
+    return;
+  }
+  if(!customTasks[cat]) customTasks[cat] = [];
+  customTasks[cat].push(task);
+  saveCustomTasks();
+  render();
+}
+
+function renameTask(cat, oldTask, newTask){
+  newTask = newTask.trim();
+  if(!newTask || newTask === oldTask){ editingTaskKey = null; render(); return; }
+  const existing = tasksFor(cat).map(t => t.toLowerCase());
+  if(existing.includes(newTask.toLowerCase())){
+    showNotice(`"${newTask}" already exists in ${cat}.`);
+    return;
+  }
+  const customIdx = (customTasks[cat] || []).indexOf(oldTask);
+  if(customIdx > -1){
+    customTasks[cat][customIdx] = newTask;
+    saveCustomTasks();
+  } else {
+    // it's one of the built-in defaults: hide the old name, add the new one in its place
+    if(!hiddenTasks[cat]) hiddenTasks[cat] = [];
+    if(!hiddenTasks[cat].includes(oldTask)) hiddenTasks[cat].push(oldTask);
+    saveHiddenTasks();
+    if(!customTasks[cat]) customTasks[cat] = [];
+    customTasks[cat].push(newTask);
+    saveCustomTasks();
+  }
+  // carry today's existing assignments/completions over to the new name so nothing's silently dropped
+  let changed = false;
+  Object.keys(assignments).forEach(name=>{
+    const idx = assignments[name].indexOf(oldTask);
+    if(idx > -1){ assignments[name][idx] = newTask; changed = true; }
+  });
+  Object.keys(completions).forEach(name=>{
+    const idx = completions[name].indexOf(oldTask);
+    if(idx > -1){ completions[name][idx] = newTask; changed = true; }
+  });
+  if(changed){ saveDay(); saveCompletions(); }
+  editingTaskKey = null;
+  render();
+}
+
+function renameDayTask(cat, day, oldTask, newTask, qualify){
+  newTask = newTask.trim();
+  if(!newTask || newTask === oldTask){ editingTaskKey = null; render(); return; }
+  const key = cat + '|' + day;
+  const existing = tasksForDay(cat, day).map(t => t.toLowerCase());
+  if(existing.includes(newTask.toLowerCase())){
+    showNotice(`"${newTask}" is already listed under ${day}.`);
+    return;
+  }
+  const customIdx = (dayCustomTasks[key] || []).indexOf(oldTask);
+  if(customIdx > -1){
+    dayCustomTasks[key][customIdx] = newTask;
+    saveDayCustomTasks();
+  } else {
+    if(!dayHiddenTasks[key]) dayHiddenTasks[key] = [];
+    if(!dayHiddenTasks[key].includes(oldTask)) dayHiddenTasks[key].push(oldTask);
+    saveDayHiddenTasks();
+    if(!dayCustomTasks[key]) dayCustomTasks[key] = [];
+    dayCustomTasks[key].push(newTask);
+    saveDayCustomTasks();
+  }
+  // carry over any existing assignments using the day-qualified form of this task
+  const abbrev = CATEGORY_ABBREV[cat] || cat;
+  const oldQualified = qualify ? `${abbrev} ${oldTask} (${day})` : oldTask;
+  const newQualified = qualify ? `${abbrev} ${newTask} (${day})` : newTask;
+  let changed = false;
+  Object.keys(assignments).forEach(name=>{
+    const idx = assignments[name].indexOf(oldQualified);
+    if(idx > -1){ assignments[name][idx] = newQualified; changed = true; }
+  });
+  Object.keys(completions).forEach(name=>{
+    const idx = completions[name].indexOf(oldQualified);
+    if(idx > -1){ completions[name][idx] = newQualified; changed = true; }
+  });
+  if(changed){ saveDay(); saveCompletions(); }
+  editingTaskKey = null;
+  render();
+}
+
+async function loadDay(d){
+  try{
+    const res = await window.storage.get('assignments:'+d, sharedMode);
+    assignments = res ? JSON.parse(res.value) : {};
+  }catch(e){
+    assignments = {};
+  }
+  try{
+    const res2 = await window.storage.get('completions:'+d, sharedMode);
+    completions = res2 ? JSON.parse(res2.value) : {};
+  }catch(e){
+    completions = {};
+  }
+  try{
+    const res3 = await window.storage.get('shifthours:'+d, sharedMode);
+    shiftHours = res3 ? JSON.parse(res3.value) : {};
+  }catch(e){
+    shiftHours = {};
+  }
+  try{
+    const res4 = await window.storage.get('working:'+d, sharedMode);
+    workingToday = res4 ? JSON.parse(res4.value) : [];
+  }catch(e){
+    workingToday = [];
+  }
+
+  // Auto-apply the designated template the very first time this day is opened with nothing
+  // assigned yet — but only once, so clearing the day afterward doesn't bring it right back.
+  if(!Object.keys(assignments).length && autoApplyTemplate && templates[autoApplyTemplate]){
+    let alreadyApplied = false;
+    try{
+      const marker = await window.storage.get('autoapplied:'+d, sharedMode);
+      alreadyApplied = !!marker;
+    }catch(e){
+      alreadyApplied = false;
+    }
+    if(!alreadyApplied){
+      assignments = JSON.parse(JSON.stringify(templates[autoApplyTemplate]));
+      saveDay();
+      try{ await window.storage.set('autoapplied:'+d, JSON.stringify(true), sharedMode); }catch(e){}
+    }
+  }
+
+  dateLabel.textContent = fmtDateLabel(d);
+  dateNavLabel.textContent = fmtDateShort(d);
+  render();
+}
+
+let pendingWrites = Promise.resolve();
+
+function trackWrite(fn){
+  pendingWrites = pendingWrites.then(fn, fn);
+  return pendingWrites;
+}
+
+async function saveDay(){
+  return trackWrite(async () => {
+    try{
+      await window.storage.set('assignments:'+currentDate, JSON.stringify(assignments), sharedMode);
+    }catch(e){
+      console.error('save failed', e);
+    }
+  });
+}
+
+async function saveCompletions(){
+  return trackWrite(async () => {
+    try{
+      await window.storage.set('completions:'+currentDate, JSON.stringify(completions), sharedMode);
+    }catch(e){
+      console.error('save completions failed', e);
+    }
+  });
+}
+
+async function saveShiftHours(){
+  return trackWrite(async () => {
+    try{
+      await window.storage.set('shifthours:'+currentDate, JSON.stringify(shiftHours), sharedMode);
+    }catch(e){
+      console.error('save shift hours failed', e);
+    }
+  });
+}
+
+async function saveWorkingToday(){
+  return trackWrite(async () => {
+    try{
+      await window.storage.set('working:'+currentDate, JSON.stringify(workingToday), sharedMode);
+    }catch(e){
+      console.error('save working-today failed', e);
+    }
+  });
+}
+
+function toggleWorkingToday(name){
+  const idx = workingToday.indexOf(name);
+  if(idx > -1) workingToday.splice(idx,1);
+  else workingToday.push(name);
+  saveWorkingToday();
+  render();
+}
+
+function setShiftHour(staff, field, value){
+  const entry = shiftHours[staff] || {start:'', end:''};
+  entry[field] = value;
+  if(!entry.start && !entry.end){
+    delete shiftHours[staff];
+  } else {
+    shiftHours[staff] = entry;
+  }
+  saveShiftHours();
+}
+
+function toggleComplete(staff, task){
+  const list = completions[staff] || [];
+  const idx = list.indexOf(task);
+  if(idx>-1) list.splice(idx,1); else list.push(task);
+  if(list.length) completions[staff]=list; else delete completions[staff];
+  saveCompletions();
+  render();
+}
+
+function prevDateStr(d){
+  const dt = new Date(d+'T00:00:00');
+  dt.setDate(dt.getDate()-1);
+  return dt.toISOString().slice(0,10);
+}
+
+async function copyFromPreviousDay(){
+  const prev = prevDateStr(currentDate);
+  let prevAssignments = {};
+  try{
+    const res = await window.storage.get('assignments:'+prev, sharedMode);
+    prevAssignments = res ? JSON.parse(res.value) : {};
+  }catch(e){
+    prevAssignments = {};
+  }
+  if(!Object.keys(prevAssignments).length){
+    showNotice('No assignments found for ' + fmtDateLabel(prev) + '.');
+    return;
+  }
+  function doCopy(){
+    assignments = JSON.parse(JSON.stringify(prevAssignments));
+    saveDay();
+    render();
+  }
+  if(Object.keys(assignments).length){
+    showConfirmModal('This will overwrite today\'s current assignments with ' + fmtDateLabel(prev) + '\'s. Continue?', doCopy);
+  } else {
+    doCopy();
+  }
+}
+
+function saveCurrentAsTemplate(name){
+  name = name.trim();
+  if(!name) return;
+  templates[name] = JSON.parse(JSON.stringify(assignments));
+  saveTemplates();
+  render();
+}
+
+function applyTemplate(name){
+  if(!templates[name]) return;
+  function doApply(){
+    assignments = JSON.parse(JSON.stringify(templates[name]));
+    saveDay();
+    render();
+  }
+  if(Object.keys(assignments).length){
+    showConfirmModal('Apply template "' + name + '"? This will overwrite today\'s current assignments.', doApply);
+  } else {
+    doApply();
+  }
+}
+
+function deleteTemplate(name){
+  showConfirmModal('Delete template "' + name + '"?', ()=>{
+    delete templates[name];
+    saveTemplates();
+    if(autoApplyTemplate === name){
+      autoApplyTemplate = '';
+      saveAutoApplyTemplate();
+    }
+    render();
+  });
+}
+
+function setAutoApplyTemplate(name){
+  autoApplyTemplate = (autoApplyTemplate === name) ? '' : name;
+  saveAutoApplyTemplate();
+  render();
+}
+
+function toggleTask(staff, task){
+  const list = assignments[staff] || [];
+  const idx = list.indexOf(task);
+  if(idx>-1) list.splice(idx,1); else list.push(task);
+  if(list.length) assignments[staff]=list; else delete assignments[staff];
+  saveDay();
+  render();
+}
+
+function renderAssign(){
+  const el = document.getElementById('assignView');
+  const tplNames = Object.keys(templates);
+  const toolbar = `
+    <div class="template-row" style="margin-bottom:16px;">
+      <button class="btn btn-ghost btn-sm" id="copyPrevBtn">↺ Copy from previous day</button>
+      <button class="btn btn-ghost btn-sm" id="saveTplBtn">💾 Save today as template</button>
+      ${tplNames.length ? `
+        <select class="tpl-select" id="tplSelect">
+          <option value="">Apply a template…</option>
+          ${tplNames.map(n=>`<option value="${n}">${n}${n===autoApplyTemplate ? ' ★ auto-applies daily' : ''}</option>`).join('')}
+        </select>
+        <button class="btn btn-ghost btn-sm" id="applyTplBtn">Apply</button>
+        <button class="btn btn-ghost btn-sm" id="autoApplyTplBtn" title="Auto-apply this template every day it hasn't been touched yet">☆ Auto-apply</button>
+        <button class="btn btn-ghost btn-sm" id="deleteTplBtn">Delete</button>
+      ` : ''}
+    </div>
+    ${autoApplyTemplate ? `<div class="settings-hint" style="margin-bottom:10px;">★ "${autoApplyTemplate}" auto-applies to any new day that has nothing assigned yet.</div>` : ''}
+    ${workingToday.length ? `<div class="settings-hint" style="margin-bottom:14px;">Showing today's ${workingToday.length} working team member${workingToday.length===1?'':'s'}, sorted by shift start time. Change who's working in Bulk assign.</div>` : ''}`;
+  const rosterForToday = workingSortedByShift();
+  el.innerHTML = toolbar + '<div class="staff-grid">' + rosterForToday.map(name=>{
+    const assigned = assignments[name] || [];
+    const cat = openCat[name] || CAT_NAMES[0];
+    const isOpen = el.dataset.openStaff === name;
+    const hours = shiftHours[name] || {start:'', end:''};
+    const hoursLabel = (hours.start && hours.end) ? `${hours.start}–${hours.end}` : (hours.start || hours.end || '');
+    return `
+      <div class="staff-card ${isOpen?'open':''}" data-staff="${name}">
+        <div class="staff-head" data-toggle="${name}">
+          <div class="staff-name">${name}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            ${hoursLabel ? `<span class="badge shift-badge">${hoursLabel}</span>` : ''}
+            <span class="badge ${assigned.length?'has-tasks':''}">${assigned.length} task${assigned.length===1?'':'s'}</span>
+            <button class="staff-remove" data-remove="${name}" title="Remove from roster">✕</button>
+            <span class="chev">▾</span>
+          </div>
+        </div>
+        <div class="staff-body">
+          <div class="cat-tabs">
+            ${CAT_NAMES.map(c=>`<button class="cat-tab ${c===cat?'active':''}" data-cat="${name}|${c}">${c}</button>`).join('')}
+          </div>
+          <div class="task-list">
+            ${tasksFor(cat).map(t=>{
+              const abbrev = CATEGORY_ABBREV[cat];
+              const taskValue = abbrev ? `${abbrev} ${t}` : t;
+              return `
+              <label class="task-row ${assigned.includes(taskValue) ? 'task-row-selected' : ''}">
+                <input type="checkbox" data-check="${name}|${taskValue}" ${assigned.includes(taskValue)?'checked':''}>
+                ${t}
+              </label>`;
+            }).join('')}
+          </div>
+          <div class="add-row">
+            <input type="text" placeholder="Add a task to ${cat}…" data-newtask="${name}|${cat}" maxlength="60">
+            <button class="btn btn-ghost btn-sm" data-addtask="${name}|${cat}">+ Add</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('') + '</div>';
+
+  el.querySelectorAll('[data-toggle]').forEach(h=>{
+    h.addEventListener('click', ()=>{
+      const name = h.dataset.toggle;
+      el.dataset.openStaff = (el.dataset.openStaff===name) ? '' : name;
+      render();
+    });
+  });
+  el.querySelectorAll('[data-cat]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const [name,c] = b.dataset.cat.split('|');
+      openCat[name]=c;
+      render();
+    });
+  });
+  el.querySelectorAll('[data-check]').forEach(c=>{
+    c.addEventListener('click', ()=>{
+      const [name,task] = c.dataset.check.split('|');
+      toggleTask(name,task);
+    });
+  });
+  el.querySelectorAll('[data-remove]').forEach(b=>{
+    b.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      removeMember(b.dataset.remove);
+    });
+  });
+  el.querySelectorAll('[data-addtask]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const [name,cat] = b.dataset.addtask.split('|');
+      const input = el.querySelector(`[data-newtask="${name}|${cat}"]`);
+      addTask(cat, input.value);
+    });
+  });
+  el.querySelectorAll('[data-newtask]').forEach(inp=>{
+    inp.addEventListener('keydown', (ev)=>{
+      if(ev.key === 'Enter'){
+        const [name,cat] = inp.dataset.newtask.split('|');
+        addTask(cat, inp.value);
+      }
+    });
+  });
+
+  document.getElementById('copyPrevBtn').addEventListener('click', copyFromPreviousDay);
+  document.getElementById('saveTplBtn').addEventListener('click', ()=>{
+    showPromptModal('Name this template:', (name)=> saveCurrentAsTemplate(name), 'e.g. "Usual Monday"');
+  });
+  const applyBtn = document.getElementById('applyTplBtn');
+  if(applyBtn){
+    applyBtn.addEventListener('click', ()=>{
+      const sel = document.getElementById('tplSelect');
+      if(sel.value) applyTemplate(sel.value);
+    });
+  }
+  const deleteBtn = document.getElementById('deleteTplBtn');
+  if(deleteBtn){
+    deleteBtn.addEventListener('click', ()=>{
+      const sel = document.getElementById('tplSelect');
+      if(sel.value) deleteTemplate(sel.value);
+    });
+  }
+  const autoApplyBtn = document.getElementById('autoApplyTplBtn');
+  if(autoApplyBtn){
+    autoApplyBtn.addEventListener('click', ()=>{
+      const sel = document.getElementById('tplSelect');
+      if(sel.value) setAutoApplyTemplate(sel.value);
+    });
+  }
+}
+
+function workingSortedByShift(){
+  const list = workingToday.length ? workingToday.slice() : STAFF.slice();
+  return list.sort((a,b)=>{
+    const ha = (shiftHours[a]||{}).start || '99:99';
+    const hb = (shiftHours[b]||{}).start || '99:99';
+    return ha.localeCompare(hb) || a.localeCompare(b);
+  });
+}
+
+function buildGanttChart(names){
+  function toMin(t){
+    const [hh, mm] = t.split(':').map(Number);
+    return hh * 60 + mm;
+  }
+  function fmtMin(m){
+    const hh = Math.floor(m / 60), mm = m % 60;
+    return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+  }
+
+  // Default window is 06:00–18:15, but it expands to fit anyone whose shift
+  // starts earlier or ends later, rounded out to the nearest 15 minutes,
+  // so no bar is ever silently clipped.
+  let rangeStart = 6 * 60, rangeEnd = 18 * 60 + 15;
+  names.forEach(name=>{
+    const h = shiftHours[name];
+    if(h && h.start && h.end){
+      const s = toMin(h.start), e = toMin(h.end);
+      if(e > s){ // skip overnight shifts here; handled separately below
+        if(s < rangeStart) rangeStart = Math.floor(s / 15) * 15;
+        if(e > rangeEnd) rangeEnd = Math.ceil(e / 15) * 15;
+      }
+    }
+  });
+  const rangeMin = rangeEnd - rangeStart;
+
+  // Text labels every 2 hours (keeps the header readable)...
+  const labelMarkers = [rangeStart];
+  for(let m = Math.floor(rangeStart / 120) * 120 + 120; m < rangeEnd; m += 120){
+    labelMarkers.push(m);
+  }
+  labelMarkers.push(rangeEnd);
+
+  // ...but drop a neighboring label if it would crowd/overlap the start or end
+  // (e.g. a range ending at 18:30 shouldn't print both "18:00" and "18:30" right next to each other).
+  const minGapMin = 60;
+  if(labelMarkers.length > 2 && (labelMarkers[1] - labelMarkers[0]) < minGapMin){
+    labelMarkers.splice(1, 1);
+  }
+  if(labelMarkers.length > 2 && (labelMarkers[labelMarkers.length - 1] - labelMarkers[labelMarkers.length - 2]) < minGapMin){
+    labelMarkers.splice(labelMarkers.length - 2, 1);
+  }
+
+  // ...but an actual gridline every hour, so each hour's start/end is visible through every row.
+  const gridMarkers = [];
+  for(let m = Math.ceil(rangeStart / 60) * 60; m <= rangeEnd; m += 60){
+    gridMarkers.push(m);
+  }
+  if(!gridMarkers.includes(rangeStart)) gridMarkers.unshift(rangeStart);
+  if(!gridMarkers.includes(rangeEnd)) gridMarkers.push(rangeEnd);
+
+  const axisHtml = labelMarkers.map(m=>{
+    const pct = (m - rangeStart) / rangeMin * 100;
+    return `<span style="left:${pct}%">${fmtMin(m)}</span>`;
+  }).join('');
+
+  const gridlinesHtml = gridMarkers.map(m=>{
+    const pct = (m - rangeStart) / rangeMin * 100;
+    const edge = (m === rangeStart || m === rangeEnd) ? ' gantt-grid-edge' : '';
+    return `<div class="gantt-grid-line${edge}" style="left:${pct}%"></div>`;
+  }).join('');
+
+  const rowsHtml = names.map(name=>{
+    const h = shiftHours[name];
+    const label = `<div class="gantt-label">${name}</div>`;
+    if(!h || !h.start || !h.end){
+      return `<div class="gantt-row">${label}<div class="gantt-track">${gridlinesHtml}<div class="gantt-empty" style="padding-left:8px;">No hours set</div></div></div>`;
+    }
+    const s = toMin(h.start), e = toMin(h.end);
+    if(e <= s){
+      return `<div class="gantt-row">${label}<div class="gantt-track">${gridlinesHtml}<div class="gantt-empty" style="padding-left:8px;">Overnight shift (${h.start}–${h.end}) — not shown on this chart</div></div></div>`;
+    }
+    const leftPct = (s - rangeStart) / rangeMin * 100;
+    const widthPct = (e - s) / rangeMin * 100;
+    const bar = `<div class="gantt-bar" style="left:${leftPct}%;width:${widthPct}%;"><span class="gantt-bar-start">${h.start}</span><span class="gantt-bar-end">${h.end}</span></div>`;
+    return `<div class="gantt-row">${label}<div class="gantt-track">${gridlinesHtml}${bar}</div></div>`;
+  }).join('');
+
+  return `
+    <div class="gantt-wrap">
+      <div class="gantt-axis">${axisHtml}</div>
+      <div class="gantt-body">${rowsHtml}</div>
+    </div>`;
+}
+
+function renderDashboard(){
+  const el = document.getElementById('dashboardView');
+  const working = workingToday.length ? workingSortedByShift() : [];
+
+  if(!working.length){
+    el.innerHTML = `<div class="no-tasks">No one is marked as working for ${fmtDateLabel(currentDate)} yet.<br>Head to Bulk assign to select today's team.</div>`;
+    return;
+  }
+
+  let totalAssigned = 0, totalDone = 0;
+  const cols = working.map(name=>{
+    const assigned = dedupeTasksForDisplay(assignments[name] || []);
+    const done = completions[name] || [];
+    const inProgress = assigned.filter(t => !done.includes(t));
+    totalAssigned += assigned.length;
+    totalDone += done.filter(t => assigned.includes(t)).length;
+
+    const h = shiftHours[name] || {};
+    const hoursLabel = (h.start && h.end) ? `${h.start}\u00A0\u00A0–\u00A0\u00A0${h.end}` : (h.start || h.end || '—');
+
+    return `
+      <div class="dash-col">
+        <div class="dash-col-header">
+          <div class="dash-name">${name}</div>
+          <div class="dash-hours">${hoursLabel}</div>
+        </div>
+        <div class="dash-tiles">
+          ${inProgress.length
+            ? inProgress.map(t=>`<div class="dash-tile">${displayTaskName(t)}</div>`).join('')
+            : `<div class="gantt-empty">Nothing pending</div>`}
+        </div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="dash-summary">
+      <div class="dash-stat"><div class="num">${working.length}</div><div class="lbl lbl-primary">Working today</div></div>
+      <div class="dash-stat"><div class="num">${totalAssigned - totalDone}</div><div class="lbl lbl-primary">Tasks in progress</div></div>
+      <div class="dash-stat"><div class="num">${totalDone}</div><div class="lbl lbl-primary">Tasks completed</div></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <div class="settings-hint">Live overview for ${fmtDateLabel(currentDate)}.</div>
+      <button class="btn btn-amber" id="downloadExcelBtn">⬇ Download Excel (.xlsx)</button>
+    </div>
+    ${buildGanttChart(working)}
+    <div class="dash-columns-wrap"><div class="dash-columns">${cols}</div></div>`;
+
+  const excelBtn = document.getElementById('downloadExcelBtn');
+  if(excelBtn) excelBtn.addEventListener('click', downloadDailyExcel);
+}
+
+function renderBulk(){
+  const el = document.getElementById('bulkView');
+  const tasks = tasksFor(bulkCat);
+  if(!tasks.includes(bulkTask)) bulkTask = tasks[0] || '';
+  const workingSorted = workingToday.length ? workingSortedByShift() : [];
+  const dayGroups = CATEGORY_DAY_GROUPS[bulkCat];
+
+  function buildTaskPicker(){
+    if(!tasks.length) return '<div class="empty-cat">No tasks in this category yet.</div>';
+
+    const assignedElsewhere = new Set();
+    workingSorted.forEach(name => (assignments[name] || []).forEach(t => assignedElsewhere.add(t)));
+    function renderOptions(list, selectedValue){
+      return list.map(t=>{
+        const used = assignedElsewhere.has(t);
+        const style = used ? ' style="background:#3A2E10;color:#F0A202;font-weight:600;"' : '';
+        return `<option value="${t}" ${t===selectedValue?'selected':''}${style}>${used?'✓ ':''}${t}</option>`;
+      }).join('');
+    }
+    function renderQualifiedOptions(optionList, selectedValue){
+      return optionList.map(o=>{
+        const used = assignedElsewhere.has(o.value);
+        const style = used ? ' style="background:#3A2E10;color:#F0A202;font-weight:600;"' : '';
+        return `<option value="${o.value}" ${o.value===selectedValue?'selected':''}${style}>${used?'✓ ':''}${o.label}</option>`;
+      }).join('');
+    }
+
+    if(dayGroups){
+      // Real day boxes get a day-qualified assignment value (e.g. "Self-Selection (Thursday)")
+      // so the same task name on two different days is tracked as two separate assignments —
+      // ticking someone in for Thursday must never show them ticked on Sunday's identical task.
+      function buildDayBox(day, dayTasks, key, qualify){
+        if(!dayTasks.length){
+          return `<div class="manage-day-group"><div class="manage-day-label">${day}</div><div class="empty-cat">No tasks</div></div>`;
+        }
+        const abbrev = CATEGORY_ABBREV[bulkCat] || bulkCat;
+        const optionList = dayTasks.map(t => ({ value: qualify ? `${abbrev} ${t} (${day})` : t, label: t }));
+        if(!bulkDayTask[key] || !optionList.some(o => o.value === bulkDayTask[key])){
+          bulkDayTask[key] = optionList[0].value;
+        }
+        const selectedValue = bulkDayTask[key];
+        const staffRows = workingSorted.map(name=>{
+          const has = (assignments[name] || []).includes(selectedValue);
+          return `<label class="bulk-day-staff-row"><input type="checkbox" data-bulkdaycheck="${key}|${name}" ${has?'checked':''}> ${name}</label>`;
+        }).join('');
+        return `
+          <div class="manage-day-group">
+            <div class="manage-day-label">${day}</div>
+            <select class="bulk-task-select bulk-day-select" data-bulkdaytask="${key}">
+              ${renderQualifiedOptions(optionList, selectedValue)}
+            </select>
+            <div class="bulk-day-staff">${staffRows}</div>
+          </div>`;
+      }
+
+      const usedTasks = new Set();
+      const dayBoxes = Object.keys(dayGroups).map(day=>{
+        const key = bulkCat + '|' + day;
+        const dayTasks = tasksForDay(bulkCat, day);
+        dayTasks.forEach(t => usedTasks.add(t));
+        return buildDayBox(day, dayTasks, key, true);
+      }).join('');
+
+      const leftover = tasks.filter(t => !usedTasks.has(t));
+      const leftoverBox = leftover.length ? buildDayBox('Other', leftover, bulkCat + '|Other', false) : '';
+
+      return `
+        <div class="manage-day-groups">${dayBoxes}${leftoverBox}</div>
+        <div class="settings-hint" style="margin-top:6px;">Each day has its own task and its own team — tick who's doing it right in that box. Tasks marked ✓ are already assigned to someone working today.</div>`;
+    }
+
+    return `
+      <select class="bulk-task-select task-selected" id="bulkTaskSelect">
+        ${renderOptions(tasks, bulkTask)}
+      </select>
+      <div class="settings-hint" style="margin-top:8px;">✓ "${bulkTask}" is selected — pick a different task above to change it. Tasks marked ✓ in the list are already assigned to someone working today.</div>`;
+  }
+
+  el.innerHTML = `
+    <div class="manage-cat" style="margin-bottom:18px;">
+      <h4>Staff</h4>
+      <div class="bulk-staff-grid">
+        ${STAFF.map(name=>{
+          const checked = workingToday.includes(name);
+          return `
+            <div class="bulk-staff-row-wrap">
+              <label class="bulk-staff-row">
+                <input type="checkbox" data-workcheck="${name}" ${checked?'checked':''}> ${name}
+              </label>
+              <button class="staff-remove" data-remove="${name}" title="Remove from roster">✕</button>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="manage-cat">
+      <h4>Shift &amp; Tasks</h4>
+      ${workingSorted.length ? `
+        ${buildGanttChart(workingSorted)}
+        <div class="bulk-cat-tabs">
+          ${CAT_NAMES.map(c=>`<button class="cat-tab ${c===bulkCat?'active':''}" data-bulkcat="${c}">${c}</button>`).join('')}
+        </div>
+        ${buildTaskPicker()}
+        ${(!dayGroups && tasks.length) ? `
+          <div class="history-wrap" style="overflow-x:auto;margin-top:14px;">
+            <table class="history-table">
+              <thead><tr><th>Staff</th><th>Start</th><th>End</th><th>Assigned tasks</th><th>Select team member</th></tr></thead>
+              <tbody>
+                ${workingSorted.map(name=>{
+                  const h = shiftHours[name] || {start:'', end:''};
+                  const myTasks = assignments[name] || [];
+                  const has = myTasks.includes(bulkTask);
+                  const taskChips = myTasks.length
+                    ? myTasks.map(t=>`<span class="hist-chip hist-chip-assigned">${displayTaskName(t)}</span>`).join('')
+                    : '<span class="hist-dash">—</span>';
+                  return `<tr>
+                    <td style="white-space:nowrap;">${name}</td>
+                    <td><input type="time" class="hours-input" data-bhstart="${name}" value="${h.start||''}"></td>
+                    <td><input type="time" class="hours-input" data-bhend="${name}" value="${h.end||''}"></td>
+                    <td>${taskChips}</td>
+                    <td style="text-align:center;"><input type="checkbox" data-bulkcheck="${name}" ${has?'checked':''}></td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : ''}
+      ` : `<div class="empty-cat">Select who's working in Step 1 to enter their hours and assign tasks.</div>`}
+    </div>`;
+
+  el.querySelectorAll('[data-workcheck]').forEach(cb=>{
+    cb.addEventListener('click', ()=>{
+      toggleWorkingToday(cb.dataset.workcheck);
+    });
+  });
+  el.querySelectorAll('[data-remove]').forEach(b=>{
+    b.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      removeMember(b.dataset.remove);
+    });
+  });
+  el.querySelectorAll('[data-bhstart]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      setShiftHour(inp.dataset.bhstart, 'start', inp.value);
+      render();
+    });
+  });
+  el.querySelectorAll('[data-bhend]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      setShiftHour(inp.dataset.bhend, 'end', inp.value);
+      render();
+    });
+  });
+  el.querySelectorAll('[data-bulkcat]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      bulkCat = b.dataset.bulkcat;
+      bulkTask = '';
+      render();
+    });
+  });
+  const sel = document.getElementById('bulkTaskSelect');
+  if(sel){
+    sel.addEventListener('change', ()=>{
+      bulkTask = sel.value;
+      render();
+    });
+  }
+  el.querySelectorAll('[data-bulkdaytask]').forEach(daySel=>{
+    daySel.addEventListener('change', ()=>{
+      bulkDayTask[daySel.dataset.bulkdaytask] = daySel.value;
+      render();
+    });
+  });
+  el.querySelectorAll('[data-bulkdaycheck]').forEach(cb=>{
+    cb.addEventListener('click', ()=>{
+      const parts = cb.dataset.bulkdaycheck.split('|');
+      const name = parts.pop();
+      const key = parts.join('|');
+      toggleTask(name, bulkDayTask[key]);
+    });
+  });
+  el.querySelectorAll('[data-bulkcheck]').forEach(cb=>{
+    cb.addEventListener('click', ()=>{
+      toggleTask(cb.dataset.bulkcheck, bulkTask);
+    });
+  });
+}
+
+function renderManage(){
+  const el = document.getElementById('manageView');
+
+  function taskRow(editKey, text, removeAttrName, removeAttrValue, removeTitle){
+    if(editingTaskKey === editKey){
+      return `
+        <div class="manage-task-row manage-task-editing">
+          <input type="text" class="manage-edit-input" value="${text}" data-editinput="${editKey}" maxlength="60">
+          <button class="manage-task-save" data-editsave="${editKey}" title="Save">✓</button>
+          <button class="manage-task-remove" data-editcancel="${editKey}" title="Cancel">✕</button>
+        </div>`;
+    }
+    return `
+      <div class="manage-task-row">
+        <span>${text}</span>
+        <button class="manage-task-edit" data-editstart="${editKey}" title="Rename this task">✎</button>
+        <button class="manage-task-remove" ${removeAttrName}="${removeAttrValue}" title="${removeTitle}">✕</button>
+      </div>`;
+  }
+
+  el.innerHTML = CAT_NAMES.map(cat=>{
+    const tasks = tasksFor(cat);
+    const dayGroups = CATEGORY_DAY_GROUPS[cat];
+    const isCollapsed = dayGroups && manageCollapsed[cat];
+    let bodyHtml;
+
+    if(dayGroups){
+      const usedTasks = new Set();
+      const sections = Object.keys(dayGroups).map(day=>{
+        const dayTasks = tasksForDay(cat, day);
+        dayTasks.forEach(t => usedTasks.add(t));
+        return `
+          <div class="manage-day-group">
+            <div class="manage-day-label">${day}</div>
+            ${dayTasks.length ? dayTasks.map(t=>
+              taskRow(`day|${cat}|${day}|${t}`, t, 'data-daytaskremove', `${cat}|${day}|${t}`, `Remove from ${day}`)
+            ).join('') : '<div class="empty-cat">No tasks</div>'}
+            <div class="add-row">
+              <input type="text" placeholder="Add…" data-daynewtask="${cat}|${day}" maxlength="40">
+              <button class="btn btn-ghost btn-sm" data-dayaddtask="${cat}|${day}">+</button>
+            </div>
+          </div>`;
+      }).join('');
+
+      const leftover = tasks.filter(t => !usedTasks.has(t));
+      const leftoverHtml = leftover.length ? `
+        <div class="manage-day-group">
+          <div class="manage-day-label">Other</div>
+          ${leftover.map(t=>
+            taskRow(`flat|${cat}|${t}`, t, 'data-hidetask', `${cat}|${t}`, 'Remove this task')
+          ).join('')}
+        </div>` : '';
+
+      bodyHtml = `<div class="manage-day-groups">${sections}${leftoverHtml}</div>`;
+    } else {
+      bodyHtml = tasks.map(t=>
+        taskRow(`flat|${cat}|${t}`, t, 'data-hidetask', `${cat}|${t}`, 'Remove this task')
+      ).join('') || '<div class="empty-cat">No tasks in this category</div>';
+    }
+
+    const headerHtml = dayGroups ? `
+      <div class="manage-cat-head" data-managetoggle="${cat}">
+        <h4>${cat}</h4>
+        <span class="chev ${isCollapsed ? '' : 'open'}">▾</span>
+      </div>
+      <div class="settings-hint" style="margin-bottom:${isCollapsed ? '0' : '10px'};">${tasks.length} task${tasks.length===1?'':'s'} across the week${isCollapsed ? ' — click to show' : ''}</div>
+    ` : `<h4>${cat}</h4>`;
+
+    return `
+      <div class="manage-cat">
+        ${headerHtml}
+        ${isCollapsed ? '' : bodyHtml}
+        ${(!dayGroups && !isCollapsed) ? `
+          <div class="add-row">
+            <input type="text" placeholder="Add a task to ${cat}…" data-mgnewtask="${cat}" maxlength="60">
+            <button class="btn btn-ghost btn-sm" data-mgaddtask="${cat}">+ Add</button>
+          </div>
+        ` : ''}
+      </div>`;
+  }).join('');
+
+  el.querySelectorAll('[data-editstart]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      editingTaskKey = b.dataset.editstart;
+      render();
+      const input = el.querySelector(`[data-editinput="${CSS.escape(editingTaskKey)}"]`);
+      if(input){ input.focus(); input.select(); }
+    });
+  });
+  el.querySelectorAll('[data-editcancel]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      editingTaskKey = null;
+      render();
+    });
+  });
+  function commitEdit(key){
+    const input = el.querySelector(`[data-editinput="${CSS.escape(key)}"]`);
+    if(!input) return;
+    const [type, cat, a, b] = key.split('|');
+    if(type === 'flat'){
+      renameTask(cat, a, input.value);
+    } else if(type === 'day'){
+      const day = a, oldTask = b;
+      renameDayTask(cat, day, oldTask, input.value, true);
+    }
+  }
+  el.querySelectorAll('[data-editsave]').forEach(b=>{
+    b.addEventListener('click', ()=> commitEdit(b.dataset.editsave));
+  });
+  el.querySelectorAll('[data-editinput]').forEach(inp=>{
+    inp.addEventListener('keydown', (ev)=>{
+      if(ev.key === 'Enter') commitEdit(inp.dataset.editinput);
+      if(ev.key === 'Escape'){ editingTaskKey = null; render(); }
+    });
+  });
+
+  el.querySelectorAll('[data-managetoggle]').forEach(h=>{
+    h.addEventListener('click', ()=>{
+      const cat = h.dataset.managetoggle;
+      manageCollapsed[cat] = !manageCollapsed[cat];
+      render();
+    });
+  });
+  el.querySelectorAll('[data-daytaskremove]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const [cat, day, task] = b.dataset.daytaskremove.split('|');
+      showConfirmModal(`Remove "${task}" from ${day}? It will still be available on other days that use it.`, ()=>{
+        removeDayTask(cat, day, task);
+      });
+    });
+  });
+  el.querySelectorAll('[data-dayaddtask]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const [cat, day] = b.dataset.dayaddtask.split('|');
+      const input = el.querySelector(`[data-daynewtask="${cat}|${day}"]`);
+      addDayTask(cat, day, input.value);
+    });
+  });
+  el.querySelectorAll('[data-daynewtask]').forEach(inp=>{
+    inp.addEventListener('keydown', (ev)=>{
+      if(ev.key === 'Enter'){
+        const [cat, day] = inp.dataset.daynewtask.split('|');
+        addDayTask(cat, day, inp.value);
+      }
+    });
+  });
+  el.querySelectorAll('[data-hidetask]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const [cat,task] = b.dataset.hidetask.split('|');
+      showConfirmModal('Remove "'+task+'" from '+cat+'? This also removes it from any current assignments.', ()=>{
+        Object.keys(assignments).forEach(name=>{
+          const idx = assignments[name].indexOf(task);
+          if(idx>-1){
+            assignments[name].splice(idx,1);
+            if(!assignments[name].length) delete assignments[name];
+          }
+        });
+        saveDay();
+        hideTask(cat, task);
+      });
+    });
+  });
+  el.querySelectorAll('[data-mgaddtask]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const cat = b.dataset.mgaddtask;
+      const input = el.querySelector(`[data-mgnewtask="${cat}"]`);
+      addTask(cat, input.value);
+    });
+  });
+  el.querySelectorAll('[data-mgnewtask]').forEach(inp=>{
+    inp.addEventListener('keydown', (ev)=>{
+      if(ev.key === 'Enter'){
+        addTask(inp.dataset.mgnewtask, inp.value);
+      }
+    });
+  });
+}
+
+async function renderWeekly(){
+  const el = document.getElementById('weeklyView');
+  el.innerHTML = '<div class="no-tasks">Loading weekly overview…</div>';
+  await pendingWrites;
+
+  const days = [];
+  for(let i=6;i>=0;i--){
+    const dt = new Date(currentDate+'T00:00:00');
+    dt.setDate(dt.getDate()-i);
+    days.push(dt.toISOString().slice(0,10));
+  }
+  const perDay = [];
+  for(const d of days){
+    let a = {}, c = {};
+    try{ const r = await window.storage.get('assignments:'+d, sharedMode); a = r ? JSON.parse(r.value) : {}; }catch(e){}
+    try{ const r2 = await window.storage.get('completions:'+d, sharedMode); c = r2 ? JSON.parse(r2.value) : {}; }catch(e){}
+    perDay.push({date:d, a, c});
+  }
+  if(view !== 'weekly') return;
+
+  const names = new Set();
+  perDay.forEach(({a,c})=>{ Object.keys(a).forEach(n=>names.add(n)); Object.keys(c).forEach(n=>names.add(n)); });
+
+  if(!names.size){
+    el.innerHTML = `<div class="no-tasks">No assignment history in the last 7 days.</div>`;
+    return;
+  }
+
+  // Per-day totals, to spot the busiest day
+  const dayTotals = perDay.map(({a})=> Object.values(a).reduce((s,list)=>s+list.length, 0));
+  const maxDayTotal = Math.max(...dayTotals);
+
+  // Per-person totals across the week, to find who needs attention
+  const personTotals = {};
+  [...names].sort((a,b)=>a.localeCompare(b)).forEach(name=>{
+    let assignedCount = 0, doneCount = 0;
+    perDay.forEach(({a,c})=>{
+      const assigned = a[name] || [];
+      const done = c[name] || [];
+      assignedCount += assigned.length;
+      doneCount += done.length;
+    });
+    const denom = Math.max(assignedCount, doneCount);
+    personTotals[name] = { assignedCount, doneCount, pct: denom ? Math.round((doneCount/denom)*100) : null };
+  });
+  const withAssignments = Object.entries(personTotals).filter(([,t])=>t.assignedCount > 0);
+  const lowestPerson = withAssignments.length
+    ? withAssignments.reduce((worst,cur)=> (cur[1].pct < worst[1].pct ? cur : worst))
+    : null;
+  const busiestDayIdx = dayTotals.indexOf(maxDayTotal);
+
+  function cellFor(name, dayIdx){
+    const {a,c} = perDay[dayIdx];
+    const assigned = a[name] || [];
+    const done = c[name] || [];
+    if(!assigned.length) return '<td class="matrix-cell matrix-na">–</td>';
+    const doneHere = done.filter(t=>assigned.includes(t)).length;
+    const cls = doneHere === assigned.length ? 'matrix-done' : (doneHere > 0 ? 'matrix-pending' : 'matrix-pending');
+    return `<td class="matrix-cell ${cls}">${doneHere}/${assigned.length}</td>`;
+  }
+
+  el.innerHTML = `
+    <div class="dash-summary" style="margin-bottom:18px;">
+      <div class="dash-stat"><div class="num">${names.size}</div><div class="lbl lbl-primary">Staff active this week</div></div>
+      <div class="dash-stat"><div class="num">${maxDayTotal}</div><div class="lbl lbl-primary">Busiest day: ${fmtDateLabel(days[busiestDayIdx]).split(',')[0]}</div></div>
+      ${lowestPerson ? `<div class="dash-stat"><div class="num">${lowestPerson[1].pct}%</div><div class="lbl lbl-primary">Needs attention: ${lowestPerson[0]}</div></div>` : ''}
+    </div>
+    <div class="history-wrap" style="overflow-x:auto;">
+      <table class="history-table matrix-table">
+        <thead>
+          <tr>
+            <th style="white-space:nowrap;">Staff</th>
+            ${days.map(d=>`<th class="matrix-th"><span>${fmtDateLabel(d).split(',')[0]}</span></th>`).join('')}
+            <th style="white-space:nowrap;">Week %</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${[...names].sort((a,b)=>a.localeCompare(b)).map(name=>{
+            const t = personTotals[name];
+            return `<tr>
+              <td style="white-space:nowrap;">${name}</td>
+              ${days.map((d,i)=>cellFor(name,i)).join('')}
+              <td class="matrix-cell matrix-pct">${t.pct===null ? '–' : t.pct+'%'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="settings-hint" style="margin-top:10px;">Showing ${fmtDateLabel(days[0])} – ${fmtDateLabel(days[6])}. Cells show completed/assigned for that day; – means nothing was assigned.</div>`;
+}
+
+async function renderHistory(){
+  const el = document.getElementById('historyView');
+  el.innerHTML = '<div class="no-tasks">Loading history…</div>';
+  await pendingWrites; // make sure any just-made changes (e.g. a tick just marked done) are flushed first
+
+  // 7-day rolling summary, always anchored to today regardless of which day is selected below
+  const last7 = [];
+  for(let i=0;i<7;i++){
+    const dt = new Date(currentDate+'T00:00:00');
+    dt.setDate(dt.getDate()-i);
+    last7.push(dt.toISOString().slice(0,10));
+  }
+  const summaryPerDay = [];
+  for(const d of last7){
+    let a = {}, c = {};
+    try{ const r = await window.storage.get('assignments:'+d, sharedMode); a = r ? JSON.parse(r.value) : {}; }catch(e){}
+    try{ const r2 = await window.storage.get('completions:'+d, sharedMode); c = r2 ? JSON.parse(r2.value) : {}; }catch(e){}
+    summaryPerDay.push({a, c});
+  }
+  if(view !== 'history') return; // user navigated away while loading
+
+  const totals = {};
+  summaryPerDay.forEach(({a,c})=>{
+    const names = new Set([...Object.keys(a), ...Object.keys(c)]);
+    names.forEach(name=>{
+      if(!totals[name]) totals[name] = {assigned:0, done:0};
+      totals[name].assigned += (a[name] || []).length;
+      totals[name].done += (c[name] || []).length;
+    });
+  });
+  const summaryNames = Object.keys(totals).sort((x,y)=>totals[y].assigned-totals[x].assigned);
+
+  if(!summaryNames.length){
+    el.innerHTML = `<div class="no-tasks">No assignment history in the last 7 days.</div>`;
+    return;
+  }
+
+  // Any specific calendar day can be picked, defaulting to today
+  if(!historyDay) historyDay = currentDate;
+
+  let selA = {}, selC = {};
+  try{ const r = await window.storage.get('assignments:'+historyDay, sharedMode); selA = r ? JSON.parse(r.value) : {}; }catch(e){}
+  try{ const r2 = await window.storage.get('completions:'+historyDay, sharedMode); selC = r2 ? JSON.parse(r2.value) : {}; }catch(e){}
+  if(view !== 'history') return;
+
+  const dayRows = [];
+  const dayNames = new Set([...Object.keys(selA), ...Object.keys(selC)]);
+  dayNames.forEach(name=>{
+    const assigned = selA[name] || [];
+    const done = selC[name] || [];
+    if(!assigned.length && !done.length) return;
+    const completed = assigned.filter(t => done.includes(t)).concat(done.filter(t => !assigned.includes(t)));
+    dayRows.push({name, assigned, completed});
+  });
+  dayRows.sort((x,y)=>x.name.localeCompare(y.name));
+
+  // Only tasks actually assigned to someone THIS day become columns — built straight from
+  // what's assigned, so day-qualified task names (e.g. "Self-Selection (Thursday)") show correctly.
+  const taskCols = [...new Set(dayRows.flatMap(r => r.assigned))].sort();
+
+  el.innerHTML = `
+    <div class="history-wrap" style="margin-bottom:18px;">
+      <table class="history-table">
+        <thead><tr><th>Staff</th><th>Assigned (7d)</th><th>Completed</th><th>Completion rate</th></tr></thead>
+        <tbody>
+          ${summaryNames.map(name=>{
+            const t = totals[name];
+            const denom = Math.max(t.assigned, t.done);
+            const pct = denom ? Math.round((t.done/denom)*100) : 0;
+            return `<tr><td>${name}</td><td>${t.assigned}</td><td>${t.done}</td><td>${pct}%</td></tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <label class="field-label" style="display:block;margin-bottom:6px;">Viewing day</label>
+      <input type="date" id="historyDateInput" value="${historyDay}">
+    </div>
+
+    ${dayRows.length ? `
+      <div class="history-wrap" style="overflow-x:auto;">
+        <table class="history-table matrix-table">
+          <thead>
+            <tr>
+              <th style="white-space:nowrap;">Staff</th>
+              ${taskCols.map(t=>`<th class="matrix-th"><span>${displayTaskName(t)}</span></th>`).join('')}
+              <th style="white-space:nowrap;">% Completed</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${dayRows.map(r=>{
+              const pct = r.assigned.length ? Math.round((r.completed.length / r.assigned.length) * 100) : 0;
+              return `<tr>
+                <td style="white-space:nowrap;">${r.name}</td>
+                ${taskCols.map(t=>{
+                  if(r.completed.includes(t)) return '<td class="matrix-cell matrix-done">1</td>';
+                  if(r.assigned.includes(t)) return '<td class="matrix-cell matrix-pending">0</td>';
+                  return '<td class="matrix-cell matrix-na">–</td>';
+                }).join('')}
+                <td class="matrix-cell matrix-pct">${pct}%</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="settings-hint" style="margin-top:10px;">1 = completed, 0 = assigned but not completed, – = not assigned that day.</div>
+    ` : `<div class="no-tasks">No assignments recorded for ${fmtDateLabel(historyDay)}.</div>`}`;
+
+  document.getElementById('historyDateInput').addEventListener('change', (ev)=>{
+    historyDay = ev.target.value;
+    render();
+  });
+}
+
+// Merges "Self-Selection" and "LF Self-Selection" (or any prefixed/unprefixed pair that are
+// really the same task) into one entry for display, preferring the prefixed version, so
+// tickets never show what looks like the same task twice.
+function dedupeTasksForDisplay(taskList){
+  const seen = new Map(); // canonical base name -> chosen raw task string
+  taskList.forEach(t=>{
+    const disp = displayTaskName(t);
+    const isPrefixed = /^(LF|GS) /.test(disp);
+    const base = isPrefixed ? disp.replace(/^(LF|GS) /, '') : disp;
+    if(!seen.has(base)){
+      seen.set(base, t);
+    } else {
+      const existingIsPrefixed = /^(LF|GS) /.test(displayTaskName(seen.get(base)));
+      if(isPrefixed && !existingIsPrefixed) seen.set(base, t);
+    }
+  });
+  return [...seen.values()];
+}
+
+function renderTickets(){
+  const el = document.getElementById('ticketsView');
+  const staffWithTasks = STAFF.filter(n => (assignments[n]||[]).length);
+  if(!staffWithTasks.length){
+    el.innerHTML = `<div class="no-tasks">No tasks assigned for ${fmtDateLabel(currentDate)} yet.<br>Head to Assign to build today's dockets.</div>`;
+    return;
+  }
+  const heading = shopName ? shopName : 'Shift Docket';
+  el.innerHTML = `
+    <div class="ticket-toolbar">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);">${staffWithTasks.length} docket${staffWithTasks.length===1?'':'s'} ready</span>
+      <button class="btn btn-amber" id="downloadPdfBtn">Download PDF</button>
+    </div>
+    <div class="ticket-grid">
+      ${staffWithTasks.map(name=>{
+        const tasks = dedupeTasksForDisplay(assignments[name]);
+        const done = completions[name] || [];
+        const hrs = shiftHours[name] || {};
+        const hrsLabel = (hrs.start && hrs.end) ? `${hrs.start}–${hrs.end}` : (hrs.start || hrs.end || '');
+        return `
+        <div class="ticket">
+          <div class="sub">${heading} · ${fmtDateLabel(currentDate)}</div>
+          <h3>${name}</h3>
+          ${hrsLabel ? `<div class="shift-line">Shift: ${hrsLabel}</div>` : ''}
+          <ul>${tasks.map(t=>`<li class="${done.includes(t)?'done':''}"><span class="box ${done.includes(t)?'checked':''}" data-done="${name}|${t}"></span><div class="li-content">${displayTaskName(t)}${displayTaskName(t)==='Delivery' ? '<div class="delivery-time-row">Start: __________ &nbsp; End: __________</div>' : ''}</div></li>`).join('')}</ul>
+          <div class="notes-line">Notes: ______________________________</div>
+          <div class="foot"><span>${tasks.length - done.length} of ${tasks.length} left</span><span>Signed: __________</span></div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  document.getElementById('downloadPdfBtn').addEventListener('click', downloadAllDockets);
+  el.querySelectorAll('[data-done]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const [name,task] = b.dataset.done.split('|');
+      toggleComplete(name,task);
+    });
+  });
+}
+
+// ---------- CRC32 ----------
+const CRC_TABLE = (function(){
+  const table = new Uint32Array(256);
+  for(let n=0;n<256;n++){
+    let c = n;
+    for(let k=0;k<8;k++){
+      c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    }
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(bytes){
+  let crc = 0xFFFFFFFF;
+  for(let i=0;i<bytes.length;i++){
+    crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ bytes[i]) & 0xFF];
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+// ---------- little-endian byte writers ----------
+function u16(n){ return new Uint8Array([n & 0xFF, (n>>>8) & 0xFF]); }
+function u32(n){ return new Uint8Array([n & 0xFF, (n>>>8) & 0xFF, (n>>>16) & 0xFF, (n>>>24) & 0xFF]); }
+
+function concatBytes(arrays){
+  let total = 0;
+  for(const a of arrays) total += a.length;
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for(const a of arrays){ out.set(a, pos); pos += a.length; }
+  return out;
+}
+
+// ---------- minimal ZIP (STORED, no compression) ----------
+function buildZip(files){
+  const encoder = new TextEncoder();
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  files.forEach(f=>{
+    const nameBytes = encoder.encode(f.name);
+    const dataBytes = f.data instanceof Uint8Array ? f.data : encoder.encode(f.data);
+    const crc = crc32(dataBytes);
+    const size = dataBytes.length;
+
+    const localHeader = concatBytes([
+      u32(0x04034b50),
+      u16(20),        // version needed
+      u16(0),         // flags
+      u16(0),         // method: stored
+      u16(0),         // mod time
+      u16(0x21),      // mod date (a fixed valid DOS date)
+      u32(crc),
+      u32(size),      // compressed size
+      u32(size),      // uncompressed size
+      u16(nameBytes.length),
+      u16(0),         // extra field length
+      nameBytes
+    ]);
+
+    const localEntry = concatBytes([localHeader, dataBytes]);
+    localParts.push(localEntry);
+
+    const centralHeader = concatBytes([
+      u32(0x02014b50),
+      u16(20),        // version made by
+      u16(20),        // version needed
+      u16(0),         // flags
+      u16(0),         // method
+      u16(0),         // mod time
+      u16(0x21),      // mod date
+      u32(crc),
+      u32(size),
+      u32(size),
+      u16(nameBytes.length),
+      u16(0),         // extra field length
+      u16(0),         // comment length
+      u16(0),         // disk number start
+      u16(0),         // internal attrs
+      u32(0),         // external attrs
+      u32(offset),    // offset of local header
+      nameBytes
+    ]);
+    centralParts.push(centralHeader);
+
+    offset += localEntry.length;
+  });
+
+  const centralDirStart = offset;
+  const centralDir = concatBytes(centralParts);
+  const centralDirSize = centralDir.length;
+
+  const eocd = concatBytes([
+    u32(0x06054b50),
+    u16(0), u16(0),
+    u16(files.length),
+    u16(files.length),
+    u32(centralDirSize),
+    u32(centralDirStart),
+    u16(0)
+  ]);
+
+  return concatBytes([...localParts, centralDir, eocd]);
+}
+
+// ---------- XLSX-specific helpers ----------
+function xmlEscape(s){
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+
+function colLetter(n){ // 0-indexed column number -> Excel column letters
+  let s = '';
+  n = n + 1;
+  while(n > 0){
+    const rem = (n - 1) % 26;
+    s = String.fromCharCode(65 + rem) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+function buildSheetXml(rows){
+  // rows: array of arrays of cell values. Numbers rendered as numeric cells, everything else as inline strings.
+  const rowsXml = rows.map((row, rIdx) => {
+    const r = rIdx + 1;
+    const cellsXml = row.map((val, cIdx) => {
+      const ref = colLetter(cIdx) + r;
+      if(typeof val === 'number' && isFinite(val)){
+        return `<c r="${ref}"><v>${val}</v></c>`;
+      }
+      const text = (val === null || val === undefined) ? '' : String(val);
+      return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xmlEscape(text)}</t></is></c>`;
+    }).join('');
+    return `<row r="${r}">${cellsXml}</row>`;
+  }).join('');
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rowsXml}</sheetData></worksheet>`;
+}
+
+function buildWorkbookXlsx(sheets){
+  // sheets: array of {name, rows}
+  const contentTypesOverrides = sheets.map((s,i)=>
+    `<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`
+  ).join('');
+
+  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+${contentTypesOverrides}
+</Types>`;
+
+  const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+
+  const sheetTags = sheets.map((s,i)=>
+    `<sheet name="${xmlEscape(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`
+  ).join('');
+
+  const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets>${sheetTags}</sheets>
+</workbook>`;
+
+  const wbRelEntries = sheets.map((s,i)=>
+    `<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`
+  ).join('');
+  const stylesRelId = sheets.length + 1;
+  const workbookRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+${wbRelEntries}
+<Relationship Id="rId${stylesRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
+<fills count="1"><fill><patternFill patternType="none"/></fill></fills>
+<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+
+  const files = [
+    { name: '[Content_Types].xml', data: contentTypes },
+    { name: '_rels/.rels', data: rootRels },
+    { name: 'xl/workbook.xml', data: workbookXml },
+    { name: 'xl/_rels/workbook.xml.rels', data: workbookRels },
+    { name: 'xl/styles.xml', data: stylesXml },
+  ];
+  sheets.forEach((s,i)=>{
+    files.push({ name: `xl/worksheets/sheet${i+1}.xml`, data: buildSheetXml(s.rows) });
+  });
+
+  return buildZip(files);
+}
+
+function buildPdfBytes(staffWithTasks, assignments, dateLabel, shopHeading, shiftHoursMap){
+  const pageW = 842, pageH = 595;
+  const marginX = 24, marginTop = 34, marginBottom = 28;
+  const gap = 0;
+  const cols = 5;
+  const colW = (pageW - marginX * 2 - gap * (cols - 1)) / cols;
+  const cardTopY = pageH - marginTop;
+  const pad = 8; // inner padding within each column card
+
+  const nameFs = 13, headFs = 7, taskFs = 7.5, footFs = 7;
+  const taskLineH = 11, checkboxOffset = 13;
+  const charW = taskFs * 0.6; // Courier is monospace at ~0.6em per character
+  const maxChars = Math.max(6, Math.floor((colW - pad * 2 - checkboxOffset) / charW));
+  const charWHead = headFs * 0.6;
+  const maxCharsHead = Math.max(6, Math.floor((colW - pad * 2) / charWHead));
+  const headLineH = 9;
+
+  function wrapText(text, limit){
+    const words = String(text).split(' ');
+    const lines = [];
+    let cur = '';
+    words.forEach(w => {
+      const candidate = cur ? cur + ' ' + w : w;
+      if (candidate.length > limit && cur){
+        lines.push(cur);
+        cur = w;
+      } else {
+        cur = candidate;
+      }
+    });
+    if (cur) lines.push(cur);
+    return lines.length ? lines : [''];
+  }
+  function wrapLine(text){ return wrapText(text, maxChars); }
+
+  const N = staffWithTasks.length;
+  const pageCount = Math.ceil(N / cols);
+
+  const catalogNum = 1, pagesNum = 2, fontHelvNum = 3, fontCourNum = 4;
+  const firstPageNum = 5, firstContentNum = 5 + pageCount;
+  const totalObjs = 4 + 2 * pageCount;
+
+  function esc(s){ return String(s).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)'); }
+
+  const objStrings = new Array(totalObjs + 1);
+  objStrings[catalogNum] = `<< /Type /Catalog /Pages ${pagesNum} 0 R >>`;
+  const kids = [];
+  for (let i = 0; i < pageCount; i++) kids.push(`${firstPageNum + i} 0 R`);
+  objStrings[pagesNum] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pageCount} >>`;
+  objStrings[fontHelvNum] = `<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>`;
+  objStrings[fontCourNum] = `<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>`;
+
+  const streamContents = new Array(totalObjs + 1);
+  const headerLines = shopHeading
+    ? [...wrapText(shopHeading.toUpperCase(), maxCharsHead), ...wrapText(dateLabel.toUpperCase(), maxCharsHead)]
+    : wrapText(dateLabel.toUpperCase(), maxCharsHead);
+
+  // Draws one column card at a fixed height, returns the content-stream snippet for it.
+  function drawCard(colX, name, tasks, cardH, hoursLabel){
+    let cy = cardTopY - pad - 9;
+    let body = '';
+    headerLines.forEach(line => {
+      body += `BT /F2 ${headFs} Tf 0.42 0.388 0.314 rg ${colX + pad} ${cy} Td (${esc(line)}) Tj ET\n`;
+      cy -= headLineH;
+    });
+    cy -= 6;
+    body += `BT /F1 ${nameFs} Tf 0.106 0.141 0.188 rg ${colX + pad} ${cy} Td (${esc(name.toUpperCase())}) Tj ET\n`;
+    cy -= 13;
+    if(hoursLabel){
+      body += `BT /F2 ${headFs} Tf 0.42 0.388 0.314 rg ${colX + pad} ${cy} Td (Shift: ${esc(hoursLabel)}) Tj ET\n`;
+    }
+    cy -= 9;
+    body += `0.847 0.812 0.714 RG\n${colX + pad} ${cy} m ${colX + colW - pad} ${cy} l S\n`;
+    cy -= 14;
+    tasks.forEach(t => {
+      const displayT = displayTaskName(t);
+      const lines = wrapLine(displayT);
+      body += `0.106 0.141 0.188 RG\n${colX + pad} ${cy - 2} 7 7 re S\n`;
+      lines.forEach((line, li) => {
+        body += `BT /F2 ${taskFs} Tf 0.106 0.141 0.188 rg ${colX + pad + checkboxOffset} ${cy} Td (${esc(line)}) Tj ET\n`;
+        cy -= taskLineH;
+      });
+      if(displayT === 'Delivery'){
+        body += `BT /F2 6.5 Tf 0.42 0.388 0.314 rg ${colX + pad + checkboxOffset} ${cy} Td (Start: __________  End: __________) Tj ET\n`;
+        cy -= taskLineH;
+      }
+    });
+
+    const cardBottomY = cardTopY - cardH;
+    // footer is built bottom-up so every line stays safely inside the card
+    let fy = cardBottomY + pad;
+    body += `BT /F2 ${footFs} Tf 0.541 0.514 0.424 rg ${colX + pad} ${fy} Td (Signed: __________) Tj ET\n`;
+    fy += 13;
+    body += `BT /F2 ${footFs} Tf 0.541 0.514 0.424 rg ${colX + pad} ${fy} Td (Notes: _______________) Tj ET\n`;
+    fy += 13;
+    body += `BT /F2 ${footFs} Tf 0.541 0.514 0.424 rg ${colX + pad} ${fy} Td (${esc(tasks.length + ' task' + (tasks.length === 1 ? '' : 's'))}) Tj ET\n`;
+    fy += 11;
+    body += `0.847 0.812 0.714 RG\n${colX + pad} ${fy} m ${colX + colW - pad} ${fy} l S\n`;
+
+    const rect = `0.969 0.949 0.894 rg\n0.824 0.784 0.667 RG\n${colX} ${cardBottomY} ${colW} ${cardH} re B\n`;
+    return rect + body;
+  }
+
+  // Every ticket uses the same height, sized to fit the full task pool (wrapped to this
+  // column width), so the layout stays consistent no matter what's assigned that day.
+  const poolLines = CAT_NAMES.reduce((sum, cat) => {
+    return sum + tasksFor(cat).reduce((s, t) => s + wrapLine(t).length + (t === 'Delivery' ? 1 : 0), 0);
+  }, 0);
+  const uniformCardH = Math.min(
+    9 + headerLines.length * headLineH + 6 + 13 + 9 + 14 + Math.max(poolLines, 1) * taskLineH + pad + 13 + 13 + 11,
+    pageH - marginTop - marginBottom
+  );
+
+  for (let p = 0; p < pageCount; p++){
+    let pageContent = '';
+    for (let c = 0; c < cols; c++){
+      const idx = p * cols + c;
+      if (idx >= N) break;
+      const name = staffWithTasks[idx];
+      const tasks = dedupeTasksForDisplay(assignments[name] || []);
+      const colX = marginX + c * (colW + gap);
+      const hrs = (shiftHoursMap && shiftHoursMap[name]) || {};
+      const hoursLabel = (hrs.start && hrs.end) ? `${hrs.start}-${hrs.end}` : (hrs.start || hrs.end || '');
+      pageContent += drawCard(colX, name, tasks, uniformCardH, hoursLabel);
+    }
+    const pageNum = firstPageNum + p;
+    const contentNum = firstContentNum + p;
+    objStrings[pageNum] = `<< /Type /Page /Parent ${pagesNum} 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /Font << /F1 ${fontHelvNum} 0 R /F2 ${fontCourNum} 0 R >> >> /Contents ${contentNum} 0 R >>`;
+    streamContents[contentNum] = pageContent;
+  }
+
+  const encoder = new TextEncoder();
+  const chunks = [];
+  let byteLength = 0;
+  const offsets = new Array(totalObjs + 1);
+  function push(str){
+    const bytes = encoder.encode(str);
+    chunks.push(bytes);
+    byteLength += bytes.length;
+  }
+
+  push('%PDF-1.4\n');
+  for (let n = 1; n <= totalObjs; n++) {
+    offsets[n] = byteLength;
+    if (streamContents[n] !== undefined) {
+      const streamBytes = encoder.encode(streamContents[n]);
+      push(`${n} 0 obj\n<< /Length ${streamBytes.length} >>\nstream\n`);
+      chunks.push(streamBytes);
+      byteLength += streamBytes.length;
+      push(`endstream\nendobj\n`);
+    } else {
+      push(`${n} 0 obj\n${objStrings[n]}\nendobj\n`);
+    }
+  }
+  const xrefStart = byteLength;
+  let xref = `xref\n0 ${totalObjs + 1}\n0000000000 65535 f \n`;
+  for (let n = 1; n <= totalObjs; n++) {
+    xref += String(offsets[n]).padStart(10, '0') + ' 00000 n \n';
+  }
+  xref += `trailer\n<< /Size ${totalObjs + 1} /Root ${catalogNum} 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  push(xref);
+
+  const total = new Uint8Array(byteLength);
+  let pos = 0;
+  for (const c of chunks) { total.set(c, pos); pos += c.length; }
+  return total;
+}
+
+function downloadAllDockets(){
+  const staffWithTasks = STAFF.filter(n => (assignments[n] || []).length);
+  if (!staffWithTasks.length) return;
+  const btn = document.getElementById('downloadPdfBtn');
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Building PDF…';
+  try{
+    const bytes = buildPdfBytes(staffWithTasks, assignments, fmtDateLabel(currentDate), shopName, shiftHours);
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dockets-${currentDate}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }catch(err){
+    console.error('PDF generation failed', err);
+    showNotice('Something went wrong building the PDF. Please try again.');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+
+function buildDailyReportSheets(){
+  // Everyone with any activity today: working list, or anyone with an assignment/completion/shift entry
+  const names = new Set([
+    ...workingToday,
+    ...Object.keys(assignments),
+    ...Object.keys(completions),
+    ...Object.keys(shiftHours)
+  ]);
+  const rows = STAFF.filter(n => names.has(n));
+
+  const summaryHeader = ['Staff','Working Today','Shift Start','Shift End','Assigned Tasks','Completed Tasks','Pending Tasks','Assigned Count','Completed Count','Completion %'];
+  const summaryRows = [summaryHeader];
+  const taskSet = new Set();
+
+  rows.forEach(name=>{
+    const assigned = assignments[name] || [];
+    const done = completions[name] || [];
+    const pending = assigned.filter(t => !done.includes(t));
+    const completedHere = assigned.filter(t => done.includes(t));
+    const h = shiftHours[name] || {};
+    const pct = assigned.length ? Math.round((completedHere.length / assigned.length) * 100) : 0;
+    assigned.forEach(t => taskSet.add(t));
+
+    summaryRows.push([
+      name,
+      workingToday.includes(name) ? 'Yes' : 'No',
+      h.start || '',
+      h.end || '',
+      assigned.join(', '),
+      completedHere.join(', '),
+      pending.join(', '),
+      assigned.length,
+      completedHere.length,
+      pct
+    ]);
+  });
+
+  const taskCols = CAT_NAMES.reduce((arr, cat) => arr.concat(tasksFor(cat)), [])
+    .filter(t => taskSet.has(t));
+
+  const matrixHeader = ['Staff', ...taskCols];
+  const matrixRows = [matrixHeader];
+  rows.forEach(name=>{
+    const assigned = assignments[name] || [];
+    const done = completions[name] || [];
+    const rowVals = taskCols.map(t=>{
+      if(!assigned.includes(t)) return '';
+      return done.includes(t) ? 1 : 0;
+    });
+    matrixRows.push([name, ...rowVals]);
+  });
+
+  return [
+    { name: 'Summary', rows: summaryRows },
+    { name: 'Task Matrix', rows: matrixRows }
+  ];
+}
+
+function downloadDailyExcel(){
+  const btn = document.getElementById('downloadExcelBtn');
+  const originalLabel = btn ? btn.textContent : null;
+  if(btn){ btn.disabled = true; btn.textContent = 'Building Excel…'; }
+  try{
+    const sheets = buildDailyReportSheets();
+    const bytes = buildWorkbookXlsx(sheets);
+    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `daily-report-${currentDate}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }catch(err){
+    console.error('Excel generation failed', err);
+    showNotice('Something went wrong building the Excel file. Please try again.');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = originalLabel; }
+  }
+}
+
+function render(){
+  const sections = {dashboard:'dashboardView', assign:'assignView', bulk:'bulkView', tickets:'ticketsView', manage:'manageView', history:'historyView', weekly:'weeklyView'};
+  Object.keys(sections).forEach(v=>{
+    document.getElementById(sections[v]).style.display = (v===view) ? 'block' : 'none';
+  });
+  if(view==='dashboard') renderDashboard();
+  else if(view==='assign') renderAssign();
+  else if(view==='bulk') renderBulk();
+  else if(view==='tickets') renderTickets();
+  else if(view==='manage') renderManage();
+  else if(view==='history') renderHistory();
+  else if(view==='weekly') renderWeekly();
+}
+
+document.querySelectorAll('nav.tabs button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    view = b.dataset.view;
+    render();
+  });
+});
+
+dateNavBtn.addEventListener('click', ()=>{
+  const isOpening = !calendarPop.classList.contains('open');
+  if(isOpening){
+    openCalendarAt(currentDate);
+    calendarPop.classList.add('open');
+  } else {
+    calendarPop.classList.remove('open');
+  }
+});
+document.getElementById('calPrevBtn').addEventListener('click', ()=>{
+  calViewMonth--;
+  if(calViewMonth < 0){ calViewMonth = 11; calViewYear--; }
+  renderCalendarPopover();
+});
+document.getElementById('calNextBtn').addEventListener('click', ()=>{
+  calViewMonth++;
+  if(calViewMonth > 11){ calViewMonth = 0; calViewYear++; }
+  renderCalendarPopover();
+});
+document.getElementById('calTodayBtn').addEventListener('click', ()=>{
+  const todayStr = new Date().toISOString().slice(0,10);
+  currentDate = todayStr;
+  calendarPop.classList.remove('open');
+  loadDay(currentDate);
+});
+document.addEventListener('click', (ev)=>{
+  if(!calendarPop.contains(ev.target) && ev.target !== dateNavBtn && !dateNavBtn.contains(ev.target) && calendarPop.classList.contains('open')){
+    calendarPop.classList.remove('open');
+  }
+});
+
+document.getElementById('clearDayBtn').addEventListener('click', ()=>{
+  showConfirmModal('Clear all task assignments for '+fmtDateLabel(currentDate)+'?', ()=>{
+    assignments = {};
+    saveDay();
+    render();
+  });
+});
+
+const addMemberBtn = document.getElementById('addMemberBtn');
+const addMemberPop = document.getElementById('addMemberPop');
+const newMemberInput = document.getElementById('newMemberInput');
+
+addMemberBtn.addEventListener('click', ()=>{
+  addMemberPop.classList.toggle('open');
+  if(addMemberPop.classList.contains('open')) newMemberInput.focus();
+});
+document.getElementById('confirmAddMember').addEventListener('click', ()=>{
+  addMember(newMemberInput.value);
+  newMemberInput.value='';
+  addMemberPop.classList.remove('open');
+});
+newMemberInput.addEventListener('keydown', (ev)=>{
+  if(ev.key === 'Enter'){
+    addMember(newMemberInput.value);
+    newMemberInput.value='';
+    addMemberPop.classList.remove('open');
+  }
+});
+document.addEventListener('click', (ev)=>{
+  if(!addMemberPop.contains(ev.target) && ev.target !== addMemberBtn && addMemberPop.classList.contains('open')){
+    addMemberPop.classList.remove('open');
+  }
+});
+
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsPop = document.getElementById('settingsPop');
+const shopNameInput = document.getElementById('shopNameInput');
+
+settingsBtn.addEventListener('click', ()=>{
+  settingsPop.classList.toggle('open');
+});
+document.addEventListener('click', (ev)=>{
+  if(!settingsPop.contains(ev.target) && ev.target !== settingsBtn && settingsPop.classList.contains('open')){
+    settingsPop.classList.remove('open');
+  }
+});
+shopNameInput.addEventListener('change', ()=>{
+  shopName = shopNameInput.value.trim();
+  saveShopName();
+  render();
+});
+
+const lightModeToggle = document.getElementById('lightModeToggle');
+lightModeToggle.addEventListener('change', async ()=>{
+  theme = lightModeToggle.checked ? 'light' : 'dark';
+  applyTheme();
+  await saveThemePref();
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  await sb.auth.signOut();
+  window.location.reload();
+});
+
+async function startApp(){
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  await loadThemePref();
+  applyTheme();
+  lightModeToggle.checked = (theme === 'light');
+  await loadRosterAndTasks();
+  shopNameInput.value = shopName;
+  await loadDay(currentDate);
+}
+
+const loginForm = document.getElementById('loginForm');
+const loginErrorEl = document.getElementById('loginError');
+const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+
+loginForm.addEventListener('submit', async (ev)=>{
+  ev.preventDefault();
+  loginErrorEl.textContent = '';
+  loginSubmitBtn.disabled = true;
+  loginSubmitBtn.textContent = 'Signing in…';
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  try{
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if(error){
+      loginErrorEl.textContent = error.message;
+    } else {
+      await startApp();
+    }
+  }catch(e){
+    loginErrorEl.textContent = 'Something went wrong. Please try again.';
+  } finally {
+    loginSubmitBtn.disabled = false;
+    loginSubmitBtn.textContent = 'Log in';
+  }
+});
+
+(async function checkExistingSession(){
+  try{
+    const { data } = await sb.auth.getSession();
+    if(data && data.session){
+      await startApp();
+    }
+  }catch(e){
+    console.error('Session check failed', e);
+  }
+})();
+</script>
+</body>
+</html>
