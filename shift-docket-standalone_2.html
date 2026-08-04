@@ -121,10 +121,10 @@
   }
   .staff-name{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:var(--text-main);}
   .badge{
-    font-family:'IBM Plex Mono',monospace;font-size:11px;color:#111;
-    background:var(--muted);padding:2px 9px;border-radius:20px;font-weight:600;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-secondary);
+    background:var(--surface-badge);padding:2px 9px;border-radius:20px;font-weight:600;
   }
-  .badge.has-tasks{background:var(--amber);}
+  .badge.has-tasks{background:var(--amber);color:#1B1200;}
   .shift-badge{background:var(--surface-badge) !important;color:var(--text-secondary);font-family:'Inter',sans-serif;font-weight:600;}
   .shift-hours-row{
     display:flex;align-items:center;gap:8px;margin:12px 0 4px;padding-bottom:12px;
@@ -177,10 +177,11 @@
   }
   .add-member-pop input:focus{outline:none;border-color:var(--amber);}
   .staff-remove{
-    background:rgba(225,85,85,.14);border:1px solid rgba(225,85,85,.35);color:#E88;cursor:pointer;font-size:12px;
-    font-weight:700;padding:3px 8px;border-radius:20px;line-height:1.4;
+    background:rgba(225,85,85,.12);border:none;color:#E15555;cursor:pointer;font-size:13px;
+    font-weight:700;width:24px;height:24px;border-radius:50%;padding:0;line-height:1;
+    display:inline-flex;align-items:center;justify-content:center;flex:none;transition:background .12s ease, color .12s ease;
   }
-  .staff-remove:hover{color:#fff;background:#E15555;border-color:#E15555;}
+  .staff-remove:hover{color:#fff;background:#E15555;}
 
   /* ---------- CALENDAR ---------- */
   .date-nav-wrap{position:relative;}
@@ -587,7 +588,7 @@
 // find these two values (Project Settings > API in your Supabase dashboard).
 // ============================================================================
 const SUPABASE_URL = 'https://fxfzuagyrhgibfwmvhxy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_ShdxhMrMvLZMpYaGG4fpzw_8aHSbCOR';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_KEY_HERE';
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
