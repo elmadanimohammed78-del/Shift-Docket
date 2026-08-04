@@ -600,6 +600,10 @@
             <div class="settings-hint" style="margin:14px 0 6px;">Pending access requests</div>
             <div id="pendingApprovalsList"></div>
           </div>
+          <div id="teamAccessSection" style="display:none;">
+            <div class="settings-hint" style="margin:14px 0 6px;">Team access</div>
+            <div id="teamAccessList"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -632,7 +636,7 @@
 // find these two values (Project Settings > API in your Supabase dashboard).
 // ============================================================================
 const SUPABASE_URL = 'https://fxfzuagyrhgibfwmvhxy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_ShdxhMrMvLZMpYaGG4fpzw_8aHSbCOR';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_KEY_HERE';
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -3026,6 +3030,7 @@ async function startApp(){
   shopNameInput.value = shopName;
   await loadDay(currentDate);
   renderPendingApprovals();
+  renderTeamAccess();
 }
 
 let currentUserIsAdmin = false;
@@ -3121,8 +3126,73 @@ async function approveUser(userId, canEdit){
     const { error } = await sb.from('user_approvals').update({ approved: true, can_edit: canEdit }).eq('user_id', userId);
     if(error) throw error;
     renderPendingApprovals();
+    renderTeamAccess();
   }catch(e){
     console.error('Approve failed', e);
+  }
+}
+
+// Admins only see this — RLS means non-admins simply get back nothing here regardless.
+// Lists everyone already approved, with a way to revoke access or flip their edit permission.
+async function renderTeamAccess(){
+  const section = document.getElementById('teamAccessSection');
+  const list = document.getElementById('teamAccessList');
+  if(!currentUserIsAdmin){
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  try{
+    const { data, error } = await sb.from('user_approvals').select('user_id,email,approved,is_admin,can_edit').eq('approved', true);
+    if(error) throw error;
+    const team = (data || []);
+    if(!team.length){
+      list.innerHTML = '<div class="empty-cat">No one has access yet.</div>';
+      return;
+    }
+    list.innerHTML = team.map(p => {
+      const levelLabel = p.is_admin ? 'Admin' : (p.can_edit ? 'Full access' : 'View only');
+      return `
+      <div class="manage-task-row" style="flex-wrap:wrap;">
+        <span>${p.email} <span class="settings-hint" style="display:inline;">(${levelLabel})</span></span>
+        ${p.is_admin ? '' : `
+          <button class="btn btn-ghost btn-sm" data-toggleedit="${p.user_id}" data-canedit="${p.can_edit}">${p.can_edit ? 'Make view-only' : 'Give full access'}</button>
+          <button class="btn btn-ghost btn-sm" data-revokeuser="${p.user_id}" style="color:#E15555;">Revoke access</button>
+        `}
+      </div>`;
+    }).join('');
+    list.querySelectorAll('[data-revokeuser]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        showConfirmModal('Revoke this person\'s access? They will be signed out of any future actions and blocked from the app until re-approved.', ()=> revokeUser(b.dataset.revokeuser));
+      });
+    });
+    list.querySelectorAll('[data-toggleedit]').forEach(b=>{
+      b.addEventListener('click', ()=> changeUserEditPermission(b.dataset.toggleedit, b.dataset.canedit !== 'true'));
+    });
+  }catch(e){
+    console.error('Could not load team access', e);
+    list.innerHTML = '<div class="empty-cat">Could not load team access.</div>';
+  }
+}
+
+async function revokeUser(userId){
+  try{
+    const { error } = await sb.from('user_approvals').update({ approved: false }).eq('user_id', userId);
+    if(error) throw error;
+    renderTeamAccess();
+    renderPendingApprovals();
+  }catch(e){
+    console.error('Revoke failed', e);
+  }
+}
+
+async function changeUserEditPermission(userId, canEdit){
+  try{
+    const { error } = await sb.from('user_approvals').update({ can_edit: canEdit }).eq('user_id', userId);
+    if(error) throw error;
+    renderTeamAccess();
+  }catch(e){
+    console.error('Change permission failed', e);
   }
 }
 
