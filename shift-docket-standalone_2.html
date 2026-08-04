@@ -474,8 +474,8 @@
   .ticket h3{
     font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;margin:6px 0 0;
   }
-  .ticket .sub{font-size:11px;color:#5A5340;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;}
-  .ticket .shift-line{font-family:'Inter',sans-serif;font-weight:600;font-size:11.5px;color:#5A5340;margin:-8px 0 12px;}
+  .ticket .sub{font-size:11px;color:#33301F;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;}
+  .ticket .shift-line{font-family:'Inter',sans-serif;font-weight:600;font-size:11.5px;color:#33301F;margin:-8px 0 12px;}
   .ticket ul{list-style:none;margin:0;padding:0;}
   .ticket li{
     display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:5px 0;
@@ -485,9 +485,9 @@
   .ticket li .box{width:12px;height:12px;border:1.5px solid #1B2430;margin-top:2px;flex:none;cursor:pointer;}
   .ticket li .box.checked{background:#1B2430;}
   .ticket .li-content{display:flex;flex-direction:column;flex:1;}
-  .ticket .delivery-time-row{font-size:10.5px;color:#5A5340;margin-top:3px;}
-  .ticket .notes-line{font-size:11px;color:#5A5340;margin-top:10px;}
-  .ticket .foot{margin-top:16px;padding-top:10px;border-top:1px dashed #D8CFB6;font-size:10.5px;color:#5A5340;display:flex;justify-content:space-between;}
+  .ticket .delivery-time-row{font-size:10.5px;color:#33301F;margin-top:3px;}
+  .ticket .notes-line{font-size:11px;color:#33301F;margin-top:10px;}
+  .ticket .foot{margin-top:16px;padding-top:10px;border-top:1px dashed #D8CFB6;font-size:10.5px;color:#33301F;display:flex;justify-content:space-between;}
   .no-tasks{color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:13px;padding:30px 0;text-align:center;}
 
   @media print{
@@ -595,7 +595,7 @@
 // find these two values (Project Settings > API in your Supabase dashboard).
 // ============================================================================
 const SUPABASE_URL = 'https://fxfzuagyrhgibfwmvhxy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_ShdxhMrMvLZMpYaGG4fpzw_8aHSbCOR';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_KEY_HERE';
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -2643,14 +2643,14 @@ function buildPdfBytes(staffWithTasks, assignments, dateLabel, shopHeading, shif
     let cy = cardTopY - pad - 9;
     let body = '';
     headerLines.forEach(line => {
-      body += `BT /F2 ${headFs} Tf 0.42 0.388 0.314 rg ${colX + pad} ${cy} Td (${esc(line)}) Tj ET\n`;
+      body += `BT /F2 ${headFs} Tf 0.2 0.188 0.122 rg ${colX + pad} ${cy} Td (${esc(line)}) Tj ET\n`;
       cy -= headLineH;
     });
     cy -= 6;
     body += `BT /F1 ${nameFs} Tf 0.106 0.141 0.188 rg ${colX + pad} ${cy} Td (${esc(name.toUpperCase())}) Tj ET\n`;
     cy -= 13;
     if(hoursLabel){
-      body += `BT /F2 ${headFs} Tf 0.42 0.388 0.314 rg ${colX + pad} ${cy} Td (Shift: ${esc(hoursLabel)}) Tj ET\n`;
+      body += `BT /F2 ${headFs} Tf 0.2 0.188 0.122 rg ${colX + pad} ${cy} Td (Shift: ${esc(hoursLabel)}) Tj ET\n`;
     }
     cy -= 9;
     body += `0.847 0.812 0.714 RG\n${colX + pad} ${cy} m ${colX + colW - pad} ${cy} l S\n`;
@@ -2664,7 +2664,7 @@ function buildPdfBytes(staffWithTasks, assignments, dateLabel, shopHeading, shif
         cy -= taskLineH;
       });
       if(displayT === 'Delivery'){
-        body += `BT /F2 6.5 Tf 0.42 0.388 0.314 rg ${colX + pad + checkboxOffset} ${cy} Td (Start: __________  End: __________) Tj ET\n`;
+        body += `BT /F2 6.5 Tf 0.2 0.188 0.122 rg ${colX + pad + checkboxOffset} ${cy} Td (Start: __________  End: __________) Tj ET\n`;
         cy -= taskLineH;
       }
     });
@@ -2672,11 +2672,11 @@ function buildPdfBytes(staffWithTasks, assignments, dateLabel, shopHeading, shif
     const cardBottomY = cardTopY - cardH;
     // footer is built bottom-up so every line stays safely inside the card
     let fy = cardBottomY + pad;
-    body += `BT /F2 ${footFs} Tf 0.541 0.514 0.424 rg ${colX + pad} ${fy} Td (Signed: __________) Tj ET\n`;
+    body += `BT /F2 ${footFs} Tf 0.2 0.188 0.122 rg ${colX + pad} ${fy} Td (Signed: __________) Tj ET\n`;
     fy += 13;
-    body += `BT /F2 ${footFs} Tf 0.541 0.514 0.424 rg ${colX + pad} ${fy} Td (Notes: _______________) Tj ET\n`;
+    body += `BT /F2 ${footFs} Tf 0.2 0.188 0.122 rg ${colX + pad} ${fy} Td (Notes: _______________) Tj ET\n`;
     fy += 13;
-    body += `BT /F2 ${footFs} Tf 0.541 0.514 0.424 rg ${colX + pad} ${fy} Td (${esc(tasks.length + ' task' + (tasks.length === 1 ? '' : 's'))}) Tj ET\n`;
+    body += `BT /F2 ${footFs} Tf 0.2 0.188 0.122 rg ${colX + pad} ${fy} Td (${esc(tasks.length + ' task' + (tasks.length === 1 ? '' : 's'))}) Tj ET\n`;
     fy += 11;
     body += `0.847 0.812 0.714 RG\n${colX + pad} ${fy} m ${colX + colW - pad} ${fy} l S\n`;
 
