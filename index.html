@@ -283,6 +283,10 @@
     color:var(--text-secondary);padding:6px 8px;border-radius:6px;
   }
   .manage-task-row span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .access-row{padding:8px;border-radius:6px;margin-bottom:4px;}
+  .access-row:hover{background:var(--surface-hover);}
+  .access-email{font-size:13px;color:var(--text-secondary);word-break:break-all;margin-bottom:6px;}
+  .access-actions{display:flex;gap:6px;flex-wrap:wrap;}
   .manage-task-row:hover{background:var(--surface-hover);}
   .manage-task-move{display:flex;flex-direction:column;flex:none;}
   .manage-task-move-btn{
@@ -636,7 +640,7 @@
 // find these two values (Project Settings > API in your Supabase dashboard).
 // ============================================================================
 const SUPABASE_URL = 'https://fxfzuagyrhgibfwmvhxy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_ShdxhMrMvLZMpYaGG4fpzw_8aHSbCOR';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_KEY_HERE';
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -3107,10 +3111,12 @@ async function renderPendingApprovals(){
       return;
     }
     list.innerHTML = pending.map(p => `
-      <div class="manage-task-row" style="flex-wrap:wrap;">
-        <span>${p.email}</span>
-        <button class="btn btn-ghost btn-sm" data-approveuser="${p.user_id}" data-canedit="false">Approve (view only)</button>
-        <button class="btn btn-amber btn-sm" data-approveuser="${p.user_id}" data-canedit="true">Approve (full access)</button>
+      <div class="access-row">
+        <div class="access-email">${p.email}</div>
+        <div class="access-actions">
+          <button class="btn btn-ghost btn-sm" data-approveuser="${p.user_id}" data-canedit="false">Approve (view only)</button>
+          <button class="btn btn-amber btn-sm" data-approveuser="${p.user_id}" data-canedit="true">Approve (full access)</button>
+        </div>
       </div>`).join('');
     list.querySelectorAll('[data-approveuser]').forEach(b=>{
       b.addEventListener('click', ()=> approveUser(b.dataset.approveuser, b.dataset.canedit === 'true'));
@@ -3153,11 +3159,13 @@ async function renderTeamAccess(){
     list.innerHTML = team.map(p => {
       const levelLabel = p.is_admin ? 'Admin' : (p.can_edit ? 'Full access' : 'View only');
       return `
-      <div class="manage-task-row" style="flex-wrap:wrap;">
-        <span>${p.email} <span class="settings-hint" style="display:inline;">(${levelLabel})</span></span>
+      <div class="access-row">
+        <div class="access-email">${p.email} <span class="settings-hint" style="display:inline;">(${levelLabel})</span></div>
         ${p.is_admin ? '' : `
-          <button class="btn btn-ghost btn-sm" data-toggleedit="${p.user_id}" data-canedit="${p.can_edit}">${p.can_edit ? 'Make view-only' : 'Give full access'}</button>
-          <button class="btn btn-ghost btn-sm" data-revokeuser="${p.user_id}" style="color:#E15555;">Revoke access</button>
+          <div class="access-actions">
+            <button class="btn btn-ghost btn-sm" data-toggleedit="${p.user_id}" data-canedit="${p.can_edit}">${p.can_edit ? 'Make view-only' : 'Give full access'}</button>
+            <button class="btn btn-ghost btn-sm" data-revokeuser="${p.user_id}" style="color:#E15555;">Revoke access</button>
+          </div>
         `}
       </div>`;
     }).join('');
