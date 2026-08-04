@@ -64,6 +64,10 @@
   }
   .login-input:focus{outline:none;border-color:var(--amber);}
   .login-error{color:#E15555;font-size:12.5px;margin-top:10px;min-height:16px;}
+  .login-switch{text-align:center;font-size:12.5px;color:var(--muted);margin-top:16px;}
+  .login-switch a{color:var(--amber);text-decoration:none;}
+  .login-switch a:hover{text-decoration:underline;}
+  .pending-message{color:var(--text-secondary);font-size:13.5px;line-height:1.6;text-align:center;}
   .confirm-overlay{
     position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;
     display:flex;align-items:center;justify-content:center;padding:20px;
@@ -504,7 +508,7 @@
 </head>
 <body>
 <div id="loginScreen" class="login-screen">
-  <div class="login-box">
+  <div class="login-box" id="loginBox">
     <div class="login-title">SHIFT DOCKET</div>
     <div class="login-subtitle">Sign in to continue</div>
     <form id="loginForm">
@@ -515,10 +519,39 @@
       <div id="loginError" class="login-error"></div>
       <button type="submit" class="btn btn-amber" style="width:100%;margin-top:16px;" id="loginSubmitBtn">Log in</button>
     </form>
+    <div class="login-switch">Don't have an account? <a href="#" id="showSignupLink">Request access</a></div>
+  </div>
+
+  <div class="login-box" id="signupBox" style="display:none;">
+    <div class="login-title">SHIFT DOCKET</div>
+    <div class="login-subtitle">Request access</div>
+    <form id="signupForm">
+      <label class="field-label" style="display:block;margin-bottom:4px;">Email</label>
+      <input type="email" id="signupEmail" class="login-input" autocomplete="email" required>
+      <label class="field-label" style="display:block;margin:12px 0 4px;">Password</label>
+      <input type="password" id="signupPassword" class="login-input" autocomplete="new-password" minlength="6" required>
+      <label class="field-label" style="display:block;margin:12px 0 4px;">Confirm password</label>
+      <input type="password" id="signupPasswordConfirm" class="login-input" autocomplete="new-password" minlength="6" required>
+      <div id="signupError" class="login-error"></div>
+      <button type="submit" class="btn btn-amber" style="width:100%;margin-top:16px;" id="signupSubmitBtn">Request access</button>
+    </form>
+    <div class="login-switch">Already have an account? <a href="#" id="showLoginLink">Log in</a></div>
+  </div>
+
+  <div class="login-box" id="pendingBox" style="display:none;">
+    <div class="login-title">SHIFT DOCKET</div>
+    <div class="login-subtitle">Almost there</div>
+    <div class="pending-message" id="pendingMessage">
+      Your request has been sent. Someone with access needs to approve your account before you can sign in — check back shortly.
+    </div>
+    <button class="btn btn-ghost" style="width:100%;margin-top:16px;" id="pendingLogoutBtn">Log out</button>
   </div>
 </div>
 
 <div class="app" id="mainApp" style="display:none;">
+  <div id="viewOnlyBanner" style="display:none;background:rgba(240,162,2,.14);border:1px solid rgba(240,162,2,.4);color:var(--amber);padding:8px 14px;border-radius:8px;font-size:12.5px;text-align:center;margin-bottom:14px;">
+    👁 View-only access — you can browse everything but can't make changes. Ask an admin if you need edit access.
+  </div>
   <header class="top">
     <div class="brand">
       <h1>SHIFT DOCKET</h1>
@@ -563,6 +596,10 @@
             </label>
           </div>
           <button class="btn btn-ghost btn-sm" id="logoutBtn" style="width:100%;">Log out</button>
+          <div id="pendingApprovalsSection" style="display:none;">
+            <div class="settings-hint" style="margin:14px 0 6px;">Pending access requests</div>
+            <div id="pendingApprovalsList"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -595,7 +632,7 @@
 // find these two values (Project Settings > API in your Supabase dashboard).
 // ============================================================================
 const SUPABASE_URL = 'https://fxfzuagyrhgibfwmvhxy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_ShdxhMrMvLZMpYaGG4fpzw_8aHSbCOR';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_KEY_HERE';
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -2199,6 +2236,7 @@ async function renderWeekly(){
       </table>
     </div>
     <div class="settings-hint" style="margin-top:10px;">Showing ${fmtDateLabel(days[0])} – ${fmtDateLabel(days[6])}. Cells show completed/assigned for that day; – means nothing was assigned.</div>`;
+  applyViewOnlyLock();
 }
 
 async function renderHistory(){
@@ -2314,6 +2352,7 @@ async function renderHistory(){
     historyDay = ev.target.value;
     render();
   });
+  applyViewOnlyLock();
 }
 
 // Merges "Self-Selection" and "LF Self-Selection" (or any prefixed/unprefixed pair that are
@@ -2870,6 +2909,7 @@ function render(){
   else if(view==='manage') renderManage();
   else if(view==='history') renderHistory();
   else if(view==='weekly') renderWeekly();
+  applyViewOnlyLock();
 }
 
 document.querySelectorAll('nav.tabs button').forEach(b=>{
@@ -2985,6 +3025,105 @@ async function startApp(){
   await loadRosterAndTasks();
   shopNameInput.value = shopName;
   await loadDay(currentDate);
+  renderPendingApprovals();
+}
+
+let currentUserIsAdmin = false;
+let currentUserCanEdit = true;
+
+// Disables every form control in the app for view-only users, run after every render.
+// Nav tabs, the theme toggle, and logout stay usable so they can still browse and sign out.
+// Always sets the state explicitly (both enabling and disabling) so a stale lock never lingers.
+function applyViewOnlyLock(){
+  const banner = document.getElementById('viewOnlyBanner');
+  if(banner) banner.style.display = currentUserCanEdit ? 'none' : 'block';
+  const mainApp = document.getElementById('mainApp');
+  if(!mainApp) return;
+  mainApp.querySelectorAll('input, button, select, textarea').forEach(el=>{
+    if(el.closest('nav.tabs')) return;
+    if(el.id === 'lightModeToggle' || el.id === 'logoutBtn' || el.id === 'settingsBtn') return;
+    if(el.closest('#pendingApprovalsSection')) return; // admins are always editors anyway
+    el.disabled = !currentUserCanEdit;
+  });
+}
+
+function showLoginBox(){
+  document.getElementById('loginBox').style.display = 'block';
+  document.getElementById('signupBox').style.display = 'none';
+  document.getElementById('pendingBox').style.display = 'none';
+}
+function showSignupBox(){
+  document.getElementById('loginBox').style.display = 'none';
+  document.getElementById('signupBox').style.display = 'block';
+  document.getElementById('pendingBox').style.display = 'none';
+}
+function showPendingBox(){
+  document.getElementById('loginBox').style.display = 'none';
+  document.getElementById('signupBox').style.display = 'none';
+  document.getElementById('pendingBox').style.display = 'block';
+}
+
+// Checks whether the currently logged-in user is approved (or an admin) before letting
+// them into the app. If not approved yet, shows the "waiting for approval" screen instead —
+// they stay logged in (so they don't need to type their password again), just blocked from
+// the app itself until someone with access approves them.
+async function checkApprovalAndProceed(userId){
+  try{
+    const { data, error } = await sb.from('user_approvals').select('approved,is_admin,can_edit').eq('user_id', userId).maybeSingle();
+    if(error) throw error;
+    currentUserIsAdmin = !!(data && data.is_admin);
+    currentUserCanEdit = !!(data && (data.is_admin || data.can_edit));
+    if(data && (data.approved || data.is_admin)){
+      await startApp();
+    } else {
+      showPendingBox();
+    }
+  }catch(e){
+    console.error('Approval check failed', e);
+    showPendingBox();
+  }
+}
+
+// Admins only see this — RLS means non-admins simply get back nothing here regardless.
+async function renderPendingApprovals(){
+  const section = document.getElementById('pendingApprovalsSection');
+  const list = document.getElementById('pendingApprovalsList');
+  if(!currentUserIsAdmin){
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  try{
+    const { data, error } = await sb.from('user_approvals').select('user_id,email,approved').eq('approved', false);
+    if(error) throw error;
+    const pending = (data || []);
+    if(!pending.length){
+      list.innerHTML = '<div class="empty-cat">No pending requests.</div>';
+      return;
+    }
+    list.innerHTML = pending.map(p => `
+      <div class="manage-task-row" style="flex-wrap:wrap;">
+        <span>${p.email}</span>
+        <button class="btn btn-ghost btn-sm" data-approveuser="${p.user_id}" data-canedit="false">Approve (view only)</button>
+        <button class="btn btn-amber btn-sm" data-approveuser="${p.user_id}" data-canedit="true">Approve (full access)</button>
+      </div>`).join('');
+    list.querySelectorAll('[data-approveuser]').forEach(b=>{
+      b.addEventListener('click', ()=> approveUser(b.dataset.approveuser, b.dataset.canedit === 'true'));
+    });
+  }catch(e){
+    console.error('Could not load pending approvals', e);
+    list.innerHTML = '<div class="empty-cat">Could not load pending requests.</div>';
+  }
+}
+
+async function approveUser(userId, canEdit){
+  try{
+    const { error } = await sb.from('user_approvals').update({ approved: true, can_edit: canEdit }).eq('user_id', userId);
+    if(error) throw error;
+    renderPendingApprovals();
+  }catch(e){
+    console.error('Approve failed', e);
+  }
 }
 
 const loginForm = document.getElementById('loginForm');
@@ -2999,11 +3138,11 @@ loginForm.addEventListener('submit', async (ev)=>{
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   try{
-    const { error } = await sb.auth.signInWithPassword({ email, password });
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if(error){
       loginErrorEl.textContent = error.message;
     } else {
-      await startApp();
+      await checkApprovalAndProceed(data.user.id);
     }
   }catch(e){
     loginErrorEl.textContent = 'Something went wrong. Please try again.';
@@ -3013,11 +3152,54 @@ loginForm.addEventListener('submit', async (ev)=>{
   }
 });
 
+const signupForm = document.getElementById('signupForm');
+const signupErrorEl = document.getElementById('signupError');
+const signupSubmitBtn = document.getElementById('signupSubmitBtn');
+
+signupForm.addEventListener('submit', async (ev)=>{
+  ev.preventDefault();
+  signupErrorEl.textContent = '';
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value;
+  const confirmPassword = document.getElementById('signupPasswordConfirm').value;
+  if(password !== confirmPassword){
+    signupErrorEl.textContent = 'Passwords do not match.';
+    return;
+  }
+  signupSubmitBtn.disabled = true;
+  signupSubmitBtn.textContent = 'Requesting…';
+  try{
+    const { data, error } = await sb.auth.signUp({ email, password });
+    if(error){
+      signupErrorEl.textContent = error.message;
+    } else if(data.user){
+      try{
+        await sb.from('user_approvals').insert({ user_id: data.user.id, email, approved: false, is_admin: false });
+      }catch(e){
+        console.error('Could not create approval record', e);
+      }
+      showPendingBox();
+    }
+  }catch(e){
+    signupErrorEl.textContent = 'Something went wrong. Please try again.';
+  } finally {
+    signupSubmitBtn.disabled = false;
+    signupSubmitBtn.textContent = 'Request access';
+  }
+});
+
+document.getElementById('showSignupLink').addEventListener('click', (ev)=>{ ev.preventDefault(); showSignupBox(); });
+document.getElementById('showLoginLink').addEventListener('click', (ev)=>{ ev.preventDefault(); showLoginBox(); });
+document.getElementById('pendingLogoutBtn').addEventListener('click', async ()=>{
+  await sb.auth.signOut();
+  showLoginBox();
+});
+
 (async function checkExistingSession(){
   try{
     const { data } = await sb.auth.getSession();
     if(data && data.session){
-      await startApp();
+      await checkApprovalAndProceed(data.session.user.id);
     }
   }catch(e){
     console.error('Session check failed', e);
