@@ -595,7 +595,7 @@
 // find these two values (Project Settings > API in your Supabase dashboard).
 // ============================================================================
 const SUPABASE_URL = 'https://fxfzuagyrhgibfwmvhxy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_ShdxhMrMvLZMpYaGG4fpzw_8aHSbCOR';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_KEY_HERE';
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -735,7 +735,7 @@ let assignments = {}; // { staffName: [task, ...] }
 let openCat = {};      // { staffName: categoryName }
 let view = 'assign';
 let bulkCat = CAT_NAMES[0];
-let bulkTask = '';
+let bulkTasks = []; // flat categories: array of currently ticked tasks, applied together to whoever you select
 let bulkDayTask = {}; // { "category|Day": task } - independent task selection per day box
 let historyDay = null; // selected date (YYYY-MM-DD) for the History task matrix; null = default to today
 let manageCollapsed = {}; // { category: true } - day-grouped categories currently collapsed in Manage Tasks
@@ -1428,6 +1428,21 @@ function toggleTask(staff, task){
   render();
 }
 
+function toggleBulkTaskSet(name, taskList){
+  if(!taskList.length) return;
+  const current = assignments[name] || [];
+  const hasAll = taskList.every(t => current.includes(t));
+  let list = current.slice();
+  if(hasAll){
+    list = list.filter(t => !taskList.includes(t));
+  } else {
+    taskList.forEach(t => { if(!list.includes(t)) list.push(t); });
+  }
+  if(list.length) assignments[name] = list; else delete assignments[name];
+  saveDay();
+  render();
+}
+
 function renderAssign(){
   const el = document.getElementById('assignView');
   const tplNames = Object.keys(templates);
@@ -1705,7 +1720,7 @@ function renderDashboard(){
 function renderBulk(){
   const el = document.getElementById('bulkView');
   const tasks = tasksFor(bulkCat);
-  if(!tasks.includes(bulkTask)) bulkTask = tasks[0] || '';
+  bulkTasks = bulkTasks.filter(t => tasks.includes(t));
   const workingSorted = workingToday.length ? workingSortedByShift() : [];
   const dayGroups = CATEGORY_DAY_GROUPS[bulkCat];
 
@@ -1714,13 +1729,6 @@ function renderBulk(){
 
     const assignedElsewhere = new Set();
     workingSorted.forEach(name => (assignments[name] || []).forEach(t => assignedElsewhere.add(t)));
-    function renderOptions(list, selectedValue){
-      return list.map(t=>{
-        const used = assignedElsewhere.has(t);
-        const style = used ? ' style="background:#3A2E10;color:#F0A202;font-weight:600;"' : '';
-        return `<option value="${t}" ${t===selectedValue?'selected':''}${style}>${used?'✓ ':''}${t}</option>`;
-      }).join('');
-    }
     function renderQualifiedOptions(optionList, selectedValue){
       return optionList.map(o=>{
         const used = assignedElsewhere.has(o.value);
@@ -1774,10 +1782,17 @@ function renderBulk(){
     }
 
     return `
-      <select class="bulk-task-select task-selected" id="bulkTaskSelect">
-        ${renderOptions(tasks, bulkTask)}
-      </select>
-      <div class="settings-hint" style="margin-top:8px;">✓ "${bulkTask}" is selected — pick a different task above to change it. Tasks marked ✓ in the list are already assigned to someone working today.</div>`;
+      <div class="task-list bulk-task-checklist">
+        ${tasks.map(t=>{
+          const used = assignedElsewhere.has(t);
+          const checked = bulkTasks.includes(t);
+          return `<label class="task-row ${checked?'task-row-selected':''}">
+            <input type="checkbox" data-bulktaskcheck="${t}" ${checked?'checked':''}>
+            ${used?'✓ ':''}${t}
+          </label>`;
+        }).join('')}
+      </div>
+      <div class="settings-hint" style="margin-top:8px;">${bulkTasks.length ? `${bulkTasks.length} task${bulkTasks.length===1?'':'s'} ticked — tick team members below to assign all of them at once.` : 'Tick as many tasks as you like above, then tick team members below to assign them all at once.'} Tasks marked ✓ are already assigned to someone working today.</div>`;
   }
 
   el.innerHTML = `
@@ -1813,7 +1828,7 @@ function renderBulk(){
                 ${workingSorted.map(name=>{
                   const h = shiftHours[name] || {start:'', end:''};
                   const myTasks = assignments[name] || [];
-                  const has = myTasks.includes(bulkTask);
+                  const has = bulkTasks.length > 0 && bulkTasks.every(t => myTasks.includes(t));
                   const taskChips = myTasks.length
                     ? myTasks.map(t=>`<span class="hist-chip hist-chip-assigned">${displayTaskName(t)}</span>`).join('')
                     : '<span class="hist-dash">—</span>';
@@ -1822,7 +1837,7 @@ function renderBulk(){
                     <td><input type="time" class="hours-input" data-bhstart="${name}" value="${h.start||''}"></td>
                     <td><input type="time" class="hours-input" data-bhend="${name}" value="${h.end||''}"></td>
                     <td>${taskChips}</td>
-                    <td style="text-align:center;"><input type="checkbox" data-bulkcheck="${name}" ${has?'checked':''}></td>
+                    <td style="text-align:center;"><input type="checkbox" data-bulkcheck="${name}" ${has?'checked':''} ${bulkTasks.length?'':'disabled'}></td>
                   </tr>`;
                 }).join('')}
               </tbody>
@@ -1858,17 +1873,18 @@ function renderBulk(){
   el.querySelectorAll('[data-bulkcat]').forEach(b=>{
     b.addEventListener('click', ()=>{
       bulkCat = b.dataset.bulkcat;
-      bulkTask = '';
+      bulkTasks = [];
       render();
     });
   });
-  const sel = document.getElementById('bulkTaskSelect');
-  if(sel){
-    sel.addEventListener('change', ()=>{
-      bulkTask = sel.value;
+  el.querySelectorAll('[data-bulktaskcheck]').forEach(cb=>{
+    cb.addEventListener('click', ()=>{
+      const t = cb.dataset.bulktaskcheck;
+      const idx = bulkTasks.indexOf(t);
+      if(idx > -1) bulkTasks.splice(idx, 1); else bulkTasks.push(t);
       render();
     });
-  }
+  });
   el.querySelectorAll('[data-bulkdaytask]').forEach(daySel=>{
     daySel.addEventListener('change', ()=>{
       bulkDayTask[daySel.dataset.bulkdaytask] = daySel.value;
@@ -1885,7 +1901,7 @@ function renderBulk(){
   });
   el.querySelectorAll('[data-bulkcheck]').forEach(cb=>{
     cb.addEventListener('click', ()=>{
-      toggleTask(cb.dataset.bulkcheck, bulkTask);
+      toggleBulkTaskSet(cb.dataset.bulkcheck, bulkTasks);
     });
   });
 }
