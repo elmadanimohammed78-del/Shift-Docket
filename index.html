@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -418,6 +417,11 @@
     cursor:pointer;transition:background .12s ease,transform .08s ease;
   }
   .dash-tile:hover{background:rgba(46,125,107,.36);}
+  .dash-tile-done{
+    background:transparent;color:var(--muted);border:1px solid var(--line);
+    text-decoration:line-through;font-weight:400;
+  }
+  .dash-tile-done:hover{background:var(--surface-hover);}
   .dash-tile:active{transform:scale(.97);}
 
   /* Dashboard runs on a white background, so override the dark-theme colors used by its
@@ -437,6 +441,10 @@
     background:#E4F5EF;color:#0F5C43;border:1px solid #9FDCC3;font-weight:600;
   }
   #dashboardView .dash-tile:hover{background:#CDEEE3;}
+  #dashboardView .dash-tile-done{
+    background:#F4F6F8;color:#8A93A0;border:1px solid #E2E6EA;text-decoration:line-through;font-weight:400;
+  }
+  #dashboardView .dash-tile-done:hover{background:#EAEDF1;}
   #dashboardView .gantt-empty{color:#374151;}
   #dashboardView .gantt-wrap{background:#F4F6F8;border:1px solid #E2E6EA;}
   #dashboardView .gantt-axis span{color:#374151;}
@@ -645,7 +653,7 @@
 // find these two values (Project Settings > API in your Supabase dashboard).
 // ============================================================================
 const SUPABASE_URL = 'https://fxfzuagyrhgibfwmvhxy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_ShdxhMrMvLZMpYaGG4fpzw_8aHSbCOR';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_KEY_HERE';
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -1729,7 +1737,6 @@ function renderDashboard(){
   const cols = working.map(name=>{
     const assigned = dedupeTasksForDisplay(assignments[name] || []);
     const done = completions[name] || [];
-    const inProgress = assigned.filter(t => !done.includes(t));
     totalAssigned += assigned.length;
     totalDone += done.filter(t => assigned.includes(t)).length;
 
@@ -1743,8 +1750,11 @@ function renderDashboard(){
           <div class="dash-hours">${hoursLabel}</div>
         </div>
         <div class="dash-tiles">
-          ${inProgress.length
-            ? inProgress.map(t=>`<div class="dash-tile" data-dashtile="${name}|${t}" title="Click to mark done">${displayTaskName(t)}</div>`).join('')
+          ${assigned.length
+            ? assigned.map(t=>{
+                const isDone = done.includes(t);
+                return `<div class="dash-tile${isDone ? ' dash-tile-done' : ''}" data-dashtile="${name}|${t}" title="Click to ${isDone ? 'undo' : 'mark done'}">${isDone ? '✓ ' : ''}${displayTaskName(t)}</div>`;
+              }).join('')
             : `<div class="gantt-empty">Nothing pending</div>`}
         </div>
       </div>`;
