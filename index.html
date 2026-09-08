@@ -157,10 +157,13 @@
   }
   label.task-row:hover{background:var(--surface-hover);}
   label.task-row-selected{
-    background:rgba(240,162,2,.14);border-color:rgba(240,162,2,.5);color:var(--text-main);font-weight:600;
+    background:rgba(240,162,2,.22);border-color:rgba(240,162,2,.7);color:var(--text-main);font-weight:600;
   }
-  label.task-row-selected:hover{background:rgba(240,162,2,.20);}
-  .bulk-task-move{display:flex;flex-direction:column;flex:none;}
+  label.task-row-selected:hover{background:rgba(240,162,2,.30);}
+  body[data-theme="light"] label.task-row-selected{
+    background:#FFECC7;border-color:#F0A202;color:#4A3800;
+  }
+  body[data-theme="light"] label.task-row-selected:hover{background:#FFE3AD;}
   input[type=checkbox]{accent-color:var(--amber);width:15px;height:15px;flex:none;}
   .empty-cat{color:var(--muted);font-size:12.5px;font-style:italic;padding:6px 8px;}
   .add-row{display:flex;gap:6px;margin-top:8px;}
@@ -1900,15 +1903,11 @@ function renderBulk(){
           const checked = bulkTasks.includes(t);
           return `<label class="task-row ${checked?'task-row-selected':''}">
             <input type="checkbox" data-bulktaskcheck="${t}" ${checked?'checked':''}>
-            <span class="bulk-task-move">
-              <button type="button" class="manage-task-move-btn" data-bulkmoveup="${t}" title="Move up" ${i===0?'disabled':''}>▲</button>
-              <button type="button" class="manage-task-move-btn" data-bulkmovedown="${t}" title="Move down" ${i===tasks.length-1?'disabled':''}>▼</button>
-            </span>
             ${used?'✓ ':''}${t}
           </label>`;
         }).join('')}
       </div>
-      <div class="settings-hint" style="margin-top:8px;">${bulkTasks.length ? `${bulkTasks.length} task${bulkTasks.length===1?'':'s'} ticked — tick team members below to assign all of them at once.` : 'Tick as many tasks as you like above, then tick team members below to assign them all at once.'} Tasks marked ✓ are already assigned to someone working today. Use ▲▼ to change priority order.</div>`;
+      <div class="settings-hint" style="margin-top:8px;">${bulkTasks.length ? `${bulkTasks.length} task${bulkTasks.length===1?'':'s'} ticked — tick team members below to assign all of them at once.` : 'Tick as many tasks as you like above, then tick team members below to assign them all at once.'} Tasks marked ✓ are already assigned to someone working today.</div>`;
   }
 
   el.innerHTML = `
@@ -2010,28 +2009,6 @@ function renderBulk(){
       const idx = bulkTasks.indexOf(t);
       if(idx > -1) bulkTasks.splice(idx, 1); else bulkTasks.push(t);
       renderKeepingChecklistScroll();
-    });
-  });
-  el.querySelectorAll('[data-bulkmoveup]').forEach(b=>{
-    b.addEventListener('click', (ev)=>{
-      ev.preventDefault();
-      ev.stopPropagation();
-      const listEl = el.querySelector('.bulk-task-checklist');
-      const scrollTop = listEl ? listEl.scrollTop : 0;
-      moveTask(bulkCat, b.dataset.bulkmoveup, 'up');
-      const newListEl = document.getElementById('bulkView').querySelector('.bulk-task-checklist');
-      if(newListEl) newListEl.scrollTop = scrollTop;
-    });
-  });
-  el.querySelectorAll('[data-bulkmovedown]').forEach(b=>{
-    b.addEventListener('click', (ev)=>{
-      ev.preventDefault();
-      ev.stopPropagation();
-      const listEl = el.querySelector('.bulk-task-checklist');
-      const scrollTop = listEl ? listEl.scrollTop : 0;
-      moveTask(bulkCat, b.dataset.bulkmovedown, 'down');
-      const newListEl = document.getElementById('bulkView').querySelector('.bulk-task-checklist');
-      if(newListEl) newListEl.scrollTop = scrollTop;
     });
   });
   el.querySelectorAll('[data-bulkdaytask]').forEach(daySel=>{
