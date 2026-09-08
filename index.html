@@ -471,6 +471,13 @@
   .hist-chip-assigned{background:var(--surface-badge);color:var(--text-secondary);}
   .hist-chip-done{background:rgba(46,125,107,.25);color:#6FCBAF;}
   .hist-chip-pending{background:rgba(240,162,2,.18);color:var(--amber);}
+  .chip-reorderable{display:inline-flex;align-items:center;gap:4px;}
+  .chip-move-btn{
+    background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:8px;
+    padding:0;line-height:1;display:flex;align-items:center;justify-content:center;
+  }
+  .chip-move-btn:hover:not(:disabled){color:var(--amber);}
+  .chip-move-btn:disabled{opacity:.25;cursor:default;}
   .hist-dash{color:var(--muted);}
 
   /* ---------- TEMPLATES ---------- */
@@ -661,7 +668,7 @@
 // find these two values (Project Settings > API in your Supabase dashboard).
 // ============================================================================
 const SUPABASE_URL = 'https://fxfzuagyrhgibfwmvhxy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_ShdxhMrMvLZMpYaGG4fpzw_8aHSbCOR';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_KEY_HERE';
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -1504,7 +1511,7 @@ function setAutoApplyTemplate(name){
 // Builds one master priority order spanning every category (and every day box within
 // Low Fill/Gap Scan), then sorts any person's task list to match it — so assigned tasks
 // always land in the same priority order set up in Manage tasks, everywhere they're shown.
-function sortByGlobalPriority(taskList){
+function buildMasterPriorityList(){
   const master = [];
   CAT_NAMES.forEach(cat => {
     tasksFor(cat).forEach(t => { if(!master.includes(t)) master.push(t); });
@@ -1514,17 +1521,43 @@ function sortByGlobalPriority(taskList){
       });
     }
   });
+  return master;
+}
+
+function sortByGlobalPriority(taskList){
+  const master = buildMasterPriorityList();
   const known = master.filter(t => taskList.includes(t));
   const rest = taskList.filter(t => !known.includes(t));
   return [...known, ...rest];
 }
 
+// Inserts a newly-added task at the position its priority order suggests, relative to
+// whatever is ALREADY in the list — without disturbing the existing order of tasks
+// already there. That way, a manual reorder on someone's ticket survives adding or
+// removing other tasks later; it's only ever touched by dragging/reordering directly.
+function insertTaskByPriority(list, task){
+  const master = buildMasterPriorityList();
+  const taskRank = master.indexOf(task);
+  let insertAt = list.length;
+  if(taskRank !== -1){
+    for(let i = 0; i < list.length; i++){
+      const rank = master.indexOf(list[i]);
+      if(rank !== -1 && rank > taskRank){ insertAt = i; break; }
+    }
+  }
+  list.splice(insertAt, 0, task);
+  return list;
+}
+
 function toggleTask(staff, task){
   const list = assignments[staff] || [];
   const idx = list.indexOf(task);
-  if(idx>-1) list.splice(idx,1); else list.push(task);
-  const sorted = sortByGlobalPriority(list);
-  if(sorted.length) assignments[staff]=sorted; else delete assignments[staff];
+  if(idx>-1){
+    list.splice(idx,1);
+  } else {
+    insertTaskByPriority(list, task);
+  }
+  if(list.length) assignments[staff]=list; else delete assignments[staff];
   saveDay();
   render();
 }
@@ -1537,10 +1570,22 @@ function toggleBulkTaskSet(name, taskList){
   if(hasAll){
     list = list.filter(t => !taskList.includes(t));
   } else {
-    taskList.forEach(t => { if(!list.includes(t)) list.push(t); });
+    taskList.forEach(t => { if(!list.includes(t)) insertTaskByPriority(list, t); });
   }
-  const sorted = sortByGlobalPriority(list);
-  if(sorted.length) assignments[name] = sorted; else delete assignments[name];
+  if(list.length) assignments[name] = list; else delete assignments[name];
+  saveDay();
+  render();
+}
+
+// Swaps a task's position in one person's assigned list only — no effect on priority
+// order, the checklist, or anyone else's list.
+function moveAssignedTask(name, task, dir){
+  const list = assignments[name] || [];
+  const idx = list.indexOf(task);
+  const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+  if(idx === -1 || swapIdx < 0 || swapIdx >= list.length) return;
+  [list[idx], list[swapIdx]] = [list[swapIdx], list[idx]];
+  assignments[name] = list;
   saveDay();
   render();
 }
@@ -1957,7 +2002,12 @@ function renderBulk(){
                   const myTasks = assignments[name] || [];
                   const has = bulkTasks.length > 0 && bulkTasks.every(t => myTasks.includes(t));
                   const taskChips = myTasks.length
-                    ? myTasks.map(t=>`<span class="hist-chip hist-chip-assigned">${displayTaskName(t)}</span>`).join('')
+                    ? myTasks.map((t,i)=>`
+                        <span class="hist-chip hist-chip-assigned chip-reorderable">
+                          <button type="button" class="chip-move-btn" data-chipmoveup="${name}|${t}" title="Move up" ${i===0?'disabled':''}>▲</button>
+                          ${displayTaskName(t)}
+                          <button type="button" class="chip-move-btn" data-chipmovedown="${name}|${t}" title="Move down" ${i===myTasks.length-1?'disabled':''}>▼</button>
+                        </span>`).join('')
                     : '<span class="hist-dash">—</span>';
                   return `<tr>
                     <td style="white-space:nowrap;">${name}</td>
@@ -2040,6 +2090,22 @@ function renderBulk(){
   el.querySelectorAll('[data-bulkcheck]').forEach(cb=>{
     cb.addEventListener('click', ()=>{
       toggleBulkTaskSet(cb.dataset.bulkcheck, bulkTasks);
+    });
+  });
+  el.querySelectorAll('[data-chipmoveup]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const idx = b.dataset.chipmoveup.indexOf('|');
+      const name = b.dataset.chipmoveup.slice(0, idx);
+      const task = b.dataset.chipmoveup.slice(idx + 1);
+      moveAssignedTask(name, task, 'up');
+    });
+  });
+  el.querySelectorAll('[data-chipmovedown]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const idx = b.dataset.chipmovedown.indexOf('|');
+      const name = b.dataset.chipmovedown.slice(0, idx);
+      const task = b.dataset.chipmovedown.slice(idx + 1);
+      moveAssignedTask(name, task, 'down');
     });
   });
 }
