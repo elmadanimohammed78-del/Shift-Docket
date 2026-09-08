@@ -164,6 +164,10 @@
     background:#FFECC7;border-color:#F0A202;color:#4A3800;
   }
   body[data-theme="light"] label.task-row-selected:hover{background:#FFE3AD;}
+  .task-name-picked{color:var(--amber);font-weight:700;}
+  .task-name-assigned{color:#7FDBC0;font-weight:600;}
+  body[data-theme="light"] .task-name-picked{color:#8A5C04;}
+  body[data-theme="light"] .task-name-assigned{color:#1F6B57;}
   input[type=checkbox]{accent-color:var(--amber);width:15px;height:15px;flex:none;}
   .empty-cat{color:var(--muted);font-size:12.5px;font-style:italic;padding:6px 8px;}
   .add-row{display:flex;gap:6px;margin-top:8px;}
@@ -1901,9 +1905,17 @@ function renderBulk(){
         ${tasks.map((t,i)=>{
           const used = assignedElsewhere.has(t);
           const checked = bulkTasks.includes(t);
-          return `<label class="task-row ${checked?'task-row-selected':''}">
+          let nameHtml;
+          if(checked){
+            nameHtml = `<span class="task-name-picked">${used?'✓ ':''}${t}</span>`;
+          } else if(used){
+            nameHtml = `<span class="task-name-assigned">✓ ${t}</span>`;
+          } else {
+            nameHtml = t;
+          }
+          return `<label class="task-row">
             <input type="checkbox" data-bulktaskcheck="${t}" ${checked?'checked':''}>
-            ${used?'✓ ':''}${t}
+            ${nameHtml}
           </label>`;
         }).join('')}
       </div>
