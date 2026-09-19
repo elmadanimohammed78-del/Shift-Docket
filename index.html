@@ -2526,19 +2526,27 @@ async function renderHistory(){
 // really the same task) into one entry for display, preferring the prefixed version, so
 // tickets never show what looks like the same task twice.
 function dedupeTasksForDisplay(taskList){
-  const seen = new Map(); // canonical base name -> chosen raw task string
+  // LF and GS tasks can share the same underlying name on different days (e.g. both have
+  // a "Baby" task) — those must stay as two separate entries. The only thing this merges
+  // is a legacy *unprefixed* entry with its LF or GS counterpart, when both represent the
+  // same task recorded two different ways. Order is preserved exactly as given, since it
+  // reflects priority/manual reordering.
+  const prefixedBases = new Set();
+  taskList.forEach(t=>{
+    const match = displayTaskName(t).match(/^(LF|GS) (.+)$/);
+    if(match) prefixedBases.add(match[2]);
+  });
+  const seenKeys = new Set();
+  const result = [];
   taskList.forEach(t=>{
     const disp = displayTaskName(t);
     const isPrefixed = /^(LF|GS) /.test(disp);
-    const base = isPrefixed ? disp.replace(/^(LF|GS) /, '') : disp;
-    if(!seen.has(base)){
-      seen.set(base, t);
-    } else {
-      const existingIsPrefixed = /^(LF|GS) /.test(displayTaskName(seen.get(base)));
-      if(isPrefixed && !existingIsPrefixed) seen.set(base, t);
-    }
+    if(!isPrefixed && prefixedBases.has(disp)) return; // bare legacy entry with a prefixed counterpart present
+    if(seenKeys.has(disp)) return; // exact duplicate
+    seenKeys.add(disp);
+    result.push(t);
   });
-  return [...seen.values()];
+  return result;
 }
 
 function renderTickets(){
