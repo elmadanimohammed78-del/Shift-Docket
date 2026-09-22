@@ -668,7 +668,7 @@
 // find these two values (Project Settings > API in your Supabase dashboard).
 // ============================================================================
 const SUPABASE_URL = 'https://fxfzuagyrhgibfwmvhxy.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_ShdxhMrMvLZMpYaGG4fpzw_8aHSbCOR';
+const SUPABASE_ANON_KEY = 'Psb_publishable_ShdxhMrMvLZMpYaGG4fpzw_8aHSbCORASTE_YOUR_KEY_HERE';
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -1995,7 +1995,7 @@ function renderBulk(){
         ${(!dayGroups && tasks.length) ? `
           <div class="history-wrap" style="overflow-x:auto;margin-top:14px;">
             <table class="history-table">
-              <thead><tr><th>Staff</th><th>Start</th><th>End</th><th>Assigned tasks</th><th>Select team member</th></tr></thead>
+              <thead><tr><th>Staff</th><th>Select team member</th><th>Start</th><th>End</th><th>Assigned tasks</th></tr></thead>
               <tbody>
                 ${workingSorted.map(name=>{
                   const h = shiftHours[name] || {start:'', end:''};
@@ -2011,10 +2011,10 @@ function renderBulk(){
                     : '<span class="hist-dash">—</span>';
                   return `<tr>
                     <td style="white-space:nowrap;">${name}</td>
+                    <td style="text-align:center;"><input type="checkbox" data-bulkcheck="${name}" ${has?'checked':''} ${bulkTasks.length?'':'disabled'}></td>
                     <td><input type="time" class="hours-input" data-bhstart="${name}" value="${h.start||''}"></td>
                     <td><input type="time" class="hours-input" data-bhend="${name}" value="${h.end||''}"></td>
                     <td>${taskChips}</td>
-                    <td style="text-align:center;"><input type="checkbox" data-bulkcheck="${name}" ${has?'checked':''} ${bulkTasks.length?'':'disabled'}></td>
                   </tr>`;
                 }).join('')}
               </tbody>
