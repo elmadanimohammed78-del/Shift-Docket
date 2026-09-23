@@ -1387,9 +1387,15 @@ function trackWrite(fn){
 }
 
 async function saveDay(){
+  // Capture the date and data SYNCHRONOUSLY, right now — not inside the deferred write below.
+  // Otherwise, if the user navigates to a different day before this write actually runs
+  // (writes are queued and can be delayed by earlier pending ones), it would read whatever
+  // currentDate/assignments have become by then and save this data under the WRONG day.
+  const d = currentDate;
+  const a = assignments;
   return trackWrite(async () => {
     try{
-      await window.storage.set('assignments:'+currentDate, JSON.stringify(assignments), sharedMode);
+      await window.storage.set('assignments:'+d, JSON.stringify(a), sharedMode);
     }catch(e){
       console.error('save failed', e);
     }
@@ -1397,9 +1403,11 @@ async function saveDay(){
 }
 
 async function saveCompletions(){
+  const d = currentDate;
+  const c = completions;
   return trackWrite(async () => {
     try{
-      await window.storage.set('completions:'+currentDate, JSON.stringify(completions), sharedMode);
+      await window.storage.set('completions:'+d, JSON.stringify(c), sharedMode);
     }catch(e){
       console.error('save completions failed', e);
     }
@@ -1407,9 +1415,11 @@ async function saveCompletions(){
 }
 
 async function saveShiftHours(){
+  const d = currentDate;
+  const h = shiftHours;
   return trackWrite(async () => {
     try{
-      await window.storage.set('shifthours:'+currentDate, JSON.stringify(shiftHours), sharedMode);
+      await window.storage.set('shifthours:'+d, JSON.stringify(h), sharedMode);
     }catch(e){
       console.error('save shift hours failed', e);
     }
@@ -1417,9 +1427,11 @@ async function saveShiftHours(){
 }
 
 async function saveWorkingToday(){
+  const d = currentDate;
+  const w = workingToday;
   return trackWrite(async () => {
     try{
-      await window.storage.set('working:'+currentDate, JSON.stringify(workingToday), sharedMode);
+      await window.storage.set('working:'+d, JSON.stringify(w), sharedMode);
     }catch(e){
       console.error('save working-today failed', e);
     }
