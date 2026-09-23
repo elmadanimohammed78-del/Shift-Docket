@@ -419,6 +419,7 @@
   .report-title{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--text-main);letter-spacing:.3px;}
   .report-actions{display:flex;gap:8px;}
   .report-chart-wrap{background:var(--surface-1);border:1px solid var(--line);border-radius:10px;padding:14px;}
+  .report-staff-filter{max-width:340px;}
   .report-chart-svg{width:100%;height:auto;display:block;}
   .report-chart-legend{display:flex;gap:16px;margin-top:8px;font-size:11.5px;color:var(--muted);}
   .legend-swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle;}
@@ -828,6 +829,7 @@ let reportRangeType = 'week'; // 'day' | 'week' | 'month' | 'year'
 let reportAnchorDate = new Date().toISOString().slice(0,10); // the date used to compute the selected range
 let reportData = null; // last-generated report aggregate, or null before "Generate report" is clicked
 let reportBusy = false; // true while a report is being fetched/built, to disable double-clicks
+let reportStaffFilter = []; // empty = everyone; otherwise only these staff names are included
 let manageCollapsed = {}; // { category: true } - day-grouped categories currently collapsed in Manage Tasks
 let editingTaskKey = null; // uniquely identifies the single task row currently in inline-edit mode
 
@@ -3201,17 +3203,19 @@ function categoryForTask(rawTask){
   return 'Other';
 }
 
-function aggregateReportData(raw, dates){
+function aggregateReportData(raw, dates, staffFilter){
   const perStaff = {};    // name -> { assigned, completed }
   const perCategory = {}; // category -> { assigned, completed }
   const perDaySeries = []; // [{ date, assigned, completed }]
   let totalAssigned = 0, totalCompleted = 0, daysWithActivity = 0;
   const staffSeen = new Set();
+  const filterSet = (staffFilter && staffFilter.length) ? new Set(staffFilter) : null;
 
   dates.forEach(date=>{
     const assignments = raw.assignmentsByDay[date] || {};
     const completions = raw.completionsByDay[date] || {};
-    const names = Object.keys(assignments);
+    let names = Object.keys(assignments);
+    if(filterSet) names = names.filter(n => filterSet.has(n));
     if(names.length) daysWithActivity++;
     let dayAssigned = 0, dayCompleted = 0;
     names.forEach(name=>{
@@ -3245,6 +3249,12 @@ function aggregateReportData(raw, dates){
   };
 }
 
+function reportStaffSuffix(filter){
+  if(!filter || !filter.length) return '';
+  if(filter.length <= 3) return ' — ' + filter.slice().sort((a,b)=>a.localeCompare(b)).join(', ');
+  return ' — ' + filter.length + ' staff selected';
+}
+
 async function generateReport(){
   if(reportBusy) return;
   reportBusy = true;
@@ -3253,8 +3263,9 @@ async function generateReport(){
   try{
     const range = computeReportDateRange(reportRangeType, reportAnchorDate);
     const raw = await fetchReportRawData(range.dates);
-    const agg = aggregateReportData(raw, range.dates);
-    reportData = { range, label: reportRangeLabel(reportRangeType, range), rangeType: reportRangeType, ...agg };
+    const agg = aggregateReportData(raw, range.dates, reportStaffFilter);
+    const label = reportRangeLabel(reportRangeType, range) + reportStaffSuffix(reportStaffFilter);
+    reportData = { range, label, rangeType: reportRangeType, staffFilter: reportStaffFilter.slice(), ...agg };
   }catch(e){
     console.error('Report generation failed', e);
     showNotice('Something went wrong building the report. Please try again.');
@@ -3587,6 +3598,16 @@ function renderReports(){
       </div>
       <input type="date" id="reportAnchorInput" class="hours-input" value="${reportAnchorDate}">
       <button class="btn btn-amber" id="generateReportBtn" ${reportBusy?'disabled':''}>${reportBusy ? 'Building report…' : 'Generate report'}</button>
+    </div>
+    <div class="settings-hint" style="margin:14px 0 6px;">Filter by staff — leave all unticked to include everyone${reportStaffFilter.length ? ` (${reportStaffFilter.length} selected)` : ''}</div>
+    <div class="report-staff-filter">
+      <div class="task-list" id="reportStaffList">
+        ${STAFF.map(name => `<label class="task-row ${reportStaffFilter.includes(name)?'task-row-selected':''}">
+          <input type="checkbox" data-reportstaffcheck="${name}" ${reportStaffFilter.includes(name)?'checked':''}>
+          ${name}
+        </label>`).join('')}
+      </div>
+      ${reportStaffFilter.length ? `<button class="btn btn-ghost btn-sm" id="clearReportStaffBtn" style="margin-top:8px;">Clear selection</button>` : ''}
     </div>`;
 
   let previewHtml = '';
@@ -3649,6 +3670,21 @@ function renderReports(){
   if(anchorInput){
     anchorInput.addEventListener('change', ()=>{
       if(anchorInput.value) reportAnchorDate = anchorInput.value;
+    });
+  }
+  el.querySelectorAll('[data-reportstaffcheck]').forEach(cb=>{
+    cb.addEventListener('click', ()=>{
+      const name = cb.dataset.reportstaffcheck;
+      const idx = reportStaffFilter.indexOf(name);
+      if(idx > -1) reportStaffFilter.splice(idx, 1); else reportStaffFilter.push(name);
+      render();
+    });
+  });
+  const clearStaffBtn = document.getElementById('clearReportStaffBtn');
+  if(clearStaffBtn){
+    clearStaffBtn.addEventListener('click', ()=>{
+      reportStaffFilter = [];
+      render();
     });
   }
   const genBtn = document.getElementById('generateReportBtn');
