@@ -1878,6 +1878,7 @@ function renderDashboard(){
   const cols = working.map(name=>{
     const assigned = dedupeTasksForDisplay(assignments[name] || []);
     const done = completions[name] || [];
+    const pending = assigned.filter(t => !done.includes(t));
     totalAssigned += assigned.length;
     totalDone += done.filter(t => assigned.includes(t)).length;
 
@@ -1894,6 +1895,7 @@ function renderDashboard(){
         <div class="dash-col-header">
           <div class="dash-name">${name}</div>
           <div class="dash-hours">${hoursLabel}</div>
+          ${pending.length > 1 ? `<button class="btn btn-ghost btn-sm" data-markalldonebtn="${name}" style="margin-top:8px;width:100%;">Mark all ${pending.length} done</button>` : ''}
         </div>
         <div class="dash-tiles">
           ${assigned.length
@@ -1907,7 +1909,7 @@ function renderDashboard(){
               }).join('')
             : `<div class="gantt-empty">Nothing pending</div>`}
         </div>
-        ${selected.length ? `<button class="btn btn-amber btn-sm" data-markdonebtn="${name}" style="margin-top:8px;width:100%;">Mark ${selected.length} done</button>` : ''}
+        ${selected.length ? `<button class="btn btn-amber btn-sm" data-markdonebtn="${name}" style="margin-top:8px;width:100%;">Mark ${selected.length} selected done</button>` : ''}
       </div>`;
   }).join('');
 
@@ -1943,6 +1945,15 @@ function renderDashboard(){
   el.querySelectorAll('[data-markdonebtn]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       markMultipleDone(btn.dataset.markdonebtn, dashBulkSelected[btn.dataset.markdonebtn] || []);
+    });
+  });
+  el.querySelectorAll('[data-markalldonebtn]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const name = btn.dataset.markalldonebtn;
+      const assigned = dedupeTasksForDisplay(assignments[name] || []);
+      const done = completions[name] || [];
+      const pending = assigned.filter(t => !done.includes(t));
+      markMultipleDone(name, pending);
     });
   });
 
