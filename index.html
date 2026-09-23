@@ -411,6 +411,17 @@
   .dash-columns-wrap{background:var(--surface-1);border:1px solid var(--line);border-radius:10px;overflow-x:auto;}
   .dash-columns{display:flex;min-width:min-content;}
   .dash-col{flex:1;min-width:160px;padding:14px 14px 16px;border-right:1px solid var(--line);}
+
+  /* ---------- REPORTS ---------- */
+  #reportsView .dash-stat .num{color:var(--text-main);}
+  .report-controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .report-title-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  .report-title{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--text-main);letter-spacing:.3px;}
+  .report-actions{display:flex;gap:8px;}
+  .report-chart-wrap{background:var(--surface-1);border:1px solid var(--line);border-radius:10px;padding:14px;}
+  .report-chart-svg{width:100%;height:auto;display:block;}
+  .report-chart-legend{display:flex;gap:16px;margin-top:8px;font-size:11.5px;color:var(--muted);}
+  .legend-swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle;}
   .dash-col:last-child{border-right:none;}
   .dash-col-header{text-align:center;padding-bottom:10px;margin-bottom:12px;border-bottom:1px solid var(--line);}
   .dash-name{
@@ -649,6 +660,7 @@
     <button class="btn btn-ghost" data-view="manage">Manage tasks</button>
     <button class="btn btn-ghost" data-view="history">History</button>
     <button class="btn btn-ghost" data-view="weekly">📅 Weekly</button>
+    <button class="btn btn-ghost" data-view="reports">📄 Reports</button>
   </nav>
 
   <section id="dashboardView" style="display:none"></section>
@@ -658,6 +670,7 @@
   <section id="manageView" style="display:none"></section>
   <section id="historyView" style="display:none"></section>
   <section id="weeklyView" style="display:none"></section>
+  <section id="reportsView" style="display:none"></section>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -811,6 +824,10 @@ let bulkCat = CAT_NAMES[0];
 let bulkTasks = []; // flat categories: array of currently ticked tasks, applied together to whoever you select
 let bulkDayTask = {}; // { "category|Day": task } - independent task selection per day box
 let historyDay = null; // selected date (YYYY-MM-DD) for the History task matrix; null = default to today
+let reportRangeType = 'week'; // 'day' | 'week' | 'month' | 'year'
+let reportAnchorDate = new Date().toISOString().slice(0,10); // the date used to compute the selected range
+let reportData = null; // last-generated report aggregate, or null before "Generate report" is clicked
+let reportBusy = false; // true while a report is being fetched/built, to disable double-clicks
 let manageCollapsed = {}; // { category: true } - day-grouped categories currently collapsed in Manage Tasks
 let editingTaskKey = null; // uniquely identifies the single task row currently in inline-edit mode
 
@@ -3072,8 +3089,567 @@ function downloadDailyExcel(){
   }
 }
 
+// ============================================================================
+// REPORTS — historical multi-day reporting (day/week/month/year), PDF + Excel export
+// ============================================================================
+
+function computeReportDateRange(rangeType, anchorDateStr){
+  const anchor = new Date(anchorDateStr + 'T00:00:00');
+  let start, end;
+  if(rangeType === 'day'){
+    start = new Date(anchor); end = new Date(anchor);
+  } else if(rangeType === 'week'){
+    const dow = anchor.getDay(); // 0=Sun..6=Sat, week runs Monday-Sunday
+    const diffToMonday = (dow === 0) ? -6 : (1 - dow);
+    start = new Date(anchor); start.setDate(anchor.getDate() + diffToMonday);
+    end = new Date(start); end.setDate(start.getDate() + 6);
+  } else if(rangeType === 'month'){
+    start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+  } else { // year
+    start = new Date(anchor.getFullYear(), 0, 1);
+    end = new Date(anchor.getFullYear(), 11, 31);
+  }
+  const dates = [];
+  const cur = new Date(start);
+  while(cur <= end){
+    dates.push(cur.toISOString().slice(0,10));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return { start: start.toISOString().slice(0,10), end: end.toISOString().slice(0,10), dates };
+}
+
+function reportRangeLabel(rangeType, range){
+  if(rangeType === 'day') return fmtDateLabel(range.start);
+  if(rangeType === 'week') return `Week of ${fmtDateLabel(range.start)} – ${fmtDateLabel(range.end)}`;
+  if(rangeType === 'month'){
+    const d = new Date(range.start+'T00:00:00');
+    return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  }
+  return String(new Date(range.start+'T00:00:00').getFullYear());
+}
+
+// Fetches only the days that actually have data (via storage.list + prefix filtering),
+// instead of blindly checking every date in the range — much faster for month/year reports.
+async function fetchReportRawData(dates){
+  const dateSet = new Set(dates);
+  const [assignKeys, compKeys, hoursKeys] = await Promise.all([
+    window.storage.list('assignments:', sharedMode),
+    window.storage.list('completions:', sharedMode),
+    window.storage.list('shifthours:', sharedMode)
+  ]);
+
+  function relevantDates(keysResult, prefix){
+    return (keysResult && keysResult.keys ? keysResult.keys : [])
+      .map(k => k.slice(prefix.length))
+      .filter(d => dateSet.has(d));
+  }
+
+  const assignDates = relevantDates(assignKeys, 'assignments:');
+  const compDates = relevantDates(compKeys, 'completions:');
+  const hoursDates = relevantDates(hoursKeys, 'shifthours:');
+
+  async function fetchBatch(dateList, prefix){
+    const result = {};
+    const chunkSize = 25;
+    for(let i = 0; i < dateList.length; i += chunkSize){
+      const chunk = dateList.slice(i, i + chunkSize);
+      const settled = await Promise.all(chunk.map(async d => {
+        try{
+          const res = await window.storage.get(prefix + d, sharedMode);
+          return [d, res ? JSON.parse(res.value) : null];
+        }catch(e){
+          return [d, null];
+        }
+      }));
+      settled.forEach(([d, val]) => { if(val !== null) result[d] = val; });
+    }
+    return result;
+  }
+
+  const [assignmentsByDay, completionsByDay, hoursByDay] = await Promise.all([
+    fetchBatch(assignDates, 'assignments:'),
+    fetchBatch(compDates, 'completions:'),
+    fetchBatch(hoursDates, 'shifthours:')
+  ]);
+
+  return { assignmentsByDay, completionsByDay, hoursByDay };
+}
+
+// Matches a raw (possibly LF/GS-qualified) task name back to its owning category.
+function categoryForTask(rawTask){
+  const disp = displayTaskName(rawTask);
+  for(const cat of CAT_NAMES){
+    const abbrev = CATEGORY_ABBREV[cat];
+    if(abbrev && disp.startsWith(abbrev + ' ')) return cat;
+  }
+  for(const cat of CAT_NAMES){
+    if(CATEGORIES[cat] && CATEGORIES[cat].includes(disp)) return cat;
+  }
+  return 'Other';
+}
+
+function aggregateReportData(raw, dates){
+  const perStaff = {};    // name -> { assigned, completed }
+  const perCategory = {}; // category -> { assigned, completed }
+  const perDaySeries = []; // [{ date, assigned, completed }]
+  let totalAssigned = 0, totalCompleted = 0, daysWithActivity = 0;
+  const staffSeen = new Set();
+
+  dates.forEach(date=>{
+    const assignments = raw.assignmentsByDay[date] || {};
+    const completions = raw.completionsByDay[date] || {};
+    const names = Object.keys(assignments);
+    if(names.length) daysWithActivity++;
+    let dayAssigned = 0, dayCompleted = 0;
+    names.forEach(name=>{
+      staffSeen.add(name);
+      const tasks = assignments[name] || [];
+      const done = completions[name] || [];
+      if(!perStaff[name]) perStaff[name] = { assigned: 0, completed: 0 };
+      const doneCount = tasks.filter(t => done.includes(t)).length;
+      perStaff[name].assigned += tasks.length;
+      perStaff[name].completed += doneCount;
+      dayAssigned += tasks.length;
+      dayCompleted += doneCount;
+      tasks.forEach(t=>{
+        const cat = categoryForTask(t);
+        if(!perCategory[cat]) perCategory[cat] = { assigned: 0, completed: 0 };
+        perCategory[cat].assigned++;
+        if(done.includes(t)) perCategory[cat].completed++;
+      });
+    });
+    totalAssigned += dayAssigned;
+    totalCompleted += dayCompleted;
+    perDaySeries.push({ date, assigned: dayAssigned, completed: dayCompleted });
+  });
+
+  return {
+    totalAssigned, totalCompleted,
+    completionRate: totalAssigned ? Math.round((totalCompleted / totalAssigned) * 100) : 0,
+    daysWithActivity, totalDays: dates.length,
+    staffCount: staffSeen.size,
+    perStaff, perCategory, perDaySeries
+  };
+}
+
+async function generateReport(){
+  if(reportBusy) return;
+  reportBusy = true;
+  reportData = null;
+  render();
+  try{
+    const range = computeReportDateRange(reportRangeType, reportAnchorDate);
+    const raw = await fetchReportRawData(range.dates);
+    const agg = aggregateReportData(raw, range.dates);
+    reportData = { range, label: reportRangeLabel(reportRangeType, range), rangeType: reportRangeType, ...agg };
+  }catch(e){
+    console.error('Report generation failed', e);
+    showNotice('Something went wrong building the report. Please try again.');
+  }finally{
+    reportBusy = false;
+    render();
+  }
+}
+
+// Generic single/multi-page PDF assembler (object table + xref + trailer) — reusable for
+// any report made of plain text/vector-graphics content streams, one string per page.
+function assemblePdfBytes(pageContentStreams, pageW, pageH){
+  const catalogNum = 1, pagesNum = 2, fontBoldNum = 3, fontRegNum = 4;
+  const pageCount = pageContentStreams.length;
+  const firstPageNum = 5;
+  const firstContentNum = firstPageNum + pageCount;
+  const totalObjs = 4 + 2 * pageCount;
+
+  const objStrings = new Array(totalObjs + 1);
+  objStrings[catalogNum] = `<< /Type /Catalog /Pages ${pagesNum} 0 R >>`;
+  const kids = [];
+  for(let i = 0; i < pageCount; i++) kids.push(`${firstPageNum + i} 0 R`);
+  objStrings[pagesNum] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pageCount} >>`;
+  objStrings[fontBoldNum] = `<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>`;
+  objStrings[fontRegNum] = `<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>`;
+
+  const streamContents = new Array(totalObjs + 1);
+  for(let p = 0; p < pageCount; p++){
+    const pageNum = firstPageNum + p;
+    const contentNum = firstContentNum + p;
+    objStrings[pageNum] = `<< /Type /Page /Parent ${pagesNum} 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /Font << /F1 ${fontBoldNum} 0 R /F2 ${fontRegNum} 0 R >> >> /Contents ${contentNum} 0 R >>`;
+    streamContents[contentNum] = pageContentStreams[p];
+  }
+
+  const encoder = new TextEncoder();
+  const chunks = [];
+  let byteLength = 0;
+  const offsets = new Array(totalObjs + 1);
+  function push(str){
+    const bytes = encoder.encode(str);
+    chunks.push(bytes);
+    byteLength += bytes.length;
+  }
+  push('%PDF-1.4\n');
+  for(let n = 1; n <= totalObjs; n++){
+    offsets[n] = byteLength;
+    if(streamContents[n] !== undefined){
+      const streamBytes = encoder.encode(streamContents[n]);
+      push(`${n} 0 obj\n<< /Length ${streamBytes.length} >>\nstream\n`);
+      chunks.push(streamBytes);
+      byteLength += streamBytes.length;
+      push(`endstream\nendobj\n`);
+    } else {
+      push(`${n} 0 obj\n${objStrings[n]}\nendobj\n`);
+    }
+  }
+  const xrefStart = byteLength;
+  let xref = `xref\n0 ${totalObjs + 1}\n0000000000 65535 f \n`;
+  for(let n = 1; n <= totalObjs; n++){
+    xref += String(offsets[n]).padStart(10, '0') + ' 00000 n \n';
+  }
+  xref += `trailer\n<< /Size ${totalObjs + 1} /Root ${catalogNum} 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  push(xref);
+
+  const total = new Uint8Array(byteLength);
+  let pos = 0;
+  for(const c of chunks){ total.set(c, pos); pos += c.length; }
+  return total;
+}
+
+function buildReportPdfBytes(d){
+  const pageW = 595, pageH = 842; // A4 portrait
+  const marginX = 40, marginTop = 40, marginBottom = 40;
+  const contentW = pageW - marginX * 2;
+  const pages = [];
+  let body = '';
+  let y = pageH - marginTop;
+
+  function escPdf(s){
+    return String(s)
+      .replace(/[\u2013\u2014]/g, '-') // en/em dash -> plain hyphen; standard PDF fonts don't handle UTF-8 multibyte chars
+      .replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
+  }
+  function newPage(){ pages.push(body); body = ''; y = pageH - marginTop; }
+  function ensureSpace(need){ if(y - need < marginBottom) newPage(); }
+  function text(str, x, size, font, color){
+    body += `BT /${font} ${size} Tf ${color} rg ${x} ${y} Td (${escPdf(str)}) Tj ET\n`;
+  }
+  function hLine(){
+    y -= 4;
+    body += `0.82 0.82 0.82 RG\n${marginX} ${y} m ${pageW - marginX} ${y} l S\n`;
+    y -= 12;
+  }
+  function rectFill(x, yPos, w, h, color){
+    body += `${color} rg\n${x} ${yPos} ${w} ${h} re f\n`;
+  }
+  function tableHeader(cols, colX){
+    cols.forEach((c,i)=> text(c, colX[i], 9, 'F1', '0.4 0.4 0.4'));
+    y -= 13;
+  }
+
+  text('SHIFT DOCKET - REPORT', marginX, 20, 'F1', '0.106 0.141 0.188');
+  y -= 26;
+  text(d.label, marginX, 13, 'F2', '0.35 0.35 0.35');
+  y -= 24;
+
+  const stats = [
+    ['Tasks assigned', String(d.totalAssigned)],
+    ['Tasks completed', String(d.totalCompleted)],
+    ['Completion rate', d.completionRate + '%'],
+    ['Active days', d.daysWithActivity + ' / ' + d.totalDays],
+    ['Staff involved', String(d.staffCount)]
+  ];
+  stats.forEach(([label, val])=>{
+    text(label + ':', marginX, 10.5, 'F1', '0.106 0.141 0.188');
+    text(val, marginX + 140, 10.5, 'F2', '0.106 0.141 0.188');
+    y -= 15;
+  });
+  y -= 8;
+  hLine();
+
+  ensureSpace(190);
+  text('TASKS ASSIGNED VS COMPLETED PER DAY', marginX, 10, 'F1', '0.106 0.141 0.188');
+  y -= 16;
+  const chartH = 120, chartTop = y, chartBottom = chartTop - chartH;
+  const maxVal = Math.max(1, ...d.perDaySeries.map(p=>p.assigned));
+  const n = d.perDaySeries.length;
+  const groupW = n ? contentW / n : contentW;
+  const barW = Math.max(1.5, Math.min(14, groupW * 0.32));
+  d.perDaySeries.forEach((p,i)=>{
+    const groupX = marginX + i * groupW + groupW / 2;
+    const assignedH = (p.assigned / maxVal) * chartH;
+    const completedH = (p.completed / maxVal) * chartH;
+    if(assignedH > 0) rectFill(groupX - barW - 1, chartBottom, barW, assignedH, '0.6 0.6 0.6');
+    if(completedH > 0) rectFill(groupX + 1, chartBottom, barW, completedH, '0.941 0.635 0.008');
+  });
+  body += `0.82 0.82 0.82 RG\n${marginX} ${chartBottom} m ${pageW - marginX} ${chartBottom} l S\n`;
+  y = chartBottom - 14;
+  rectFill(marginX, y - 6, 8, 8, '0.6 0.6 0.6');
+  text('Assigned', marginX + 12, 8.5, 'F2', '0.5 0.5 0.5');
+  rectFill(marginX + 70, y - 6, 8, 8, '0.941 0.635 0.008');
+  text('Completed', marginX + 82, 8.5, 'F2', '0.5 0.5 0.5');
+  y -= 24;
+  hLine();
+
+  const colX = [marginX, marginX + 200, marginX + 300, marginX + 400];
+  ensureSpace(30);
+  text('BY TEAM MEMBER', marginX, 11, 'F1', '0.106 0.141 0.188');
+  y -= 16;
+  tableHeader(['Staff','Assigned','Completed','Rate'], colX);
+  const staffNames = Object.keys(d.perStaff).sort((a,b)=>a.localeCompare(b));
+  if(!staffNames.length){
+    text('No data in this range.', colX[0], 9.5, 'F2', '0.5 0.5 0.5'); y -= 13;
+  }
+  staffNames.forEach(name=>{
+    ensureSpace(14);
+    const s = d.perStaff[name];
+    const rate = s.assigned ? Math.round((s.completed/s.assigned)*100) : 0;
+    text(name, colX[0], 9.5, 'F2', '0.106 0.141 0.188');
+    text(String(s.assigned), colX[1], 9.5, 'F2', '0.106 0.141 0.188');
+    text(String(s.completed), colX[2], 9.5, 'F2', '0.106 0.141 0.188');
+    text(rate + '%', colX[3], 9.5, 'F2', '0.106 0.141 0.188');
+    y -= 13;
+  });
+  y -= 10;
+  hLine();
+
+  ensureSpace(30);
+  text('BY CATEGORY', marginX, 11, 'F1', '0.106 0.141 0.188');
+  y -= 16;
+  tableHeader(['Category','Assigned','Completed','Rate'], colX);
+  const catNames = Object.keys(d.perCategory).sort((a,b)=>d.perCategory[b].assigned - d.perCategory[a].assigned);
+  if(!catNames.length){
+    text('No data in this range.', colX[0], 9.5, 'F2', '0.5 0.5 0.5'); y -= 13;
+  }
+  catNames.forEach(cat=>{
+    ensureSpace(14);
+    const s = d.perCategory[cat];
+    const rate = s.assigned ? Math.round((s.completed/s.assigned)*100) : 0;
+    text(cat, colX[0], 9.5, 'F2', '0.106 0.141 0.188');
+    text(String(s.assigned), colX[1], 9.5, 'F2', '0.106 0.141 0.188');
+    text(String(s.completed), colX[2], 9.5, 'F2', '0.106 0.141 0.188');
+    text(rate + '%', colX[3], 9.5, 'F2', '0.106 0.141 0.188');
+    y -= 13;
+  });
+
+  pages.push(body);
+  return assemblePdfBytes(pages, pageW, pageH);
+}
+
+function downloadReportPdf(){
+  if(!reportData) return;
+  const btn = document.getElementById('downloadReportPdfBtn');
+  const originalLabel = btn ? btn.textContent : null;
+  if(btn){ btn.disabled = true; btn.textContent = 'Building…'; }
+  try{
+    const bytes = buildReportPdfBytes(reportData);
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report-${reportData.range.start}-to-${reportData.range.end}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }catch(err){
+    console.error('Report PDF generation failed', err);
+    showNotice('Something went wrong building the PDF report. Please try again.');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = originalLabel; }
+  }
+}
+
+function buildReportExcelSheets(d){
+  const summaryRows = [
+    ['Shift Docket — Report'],
+    [d.label],
+    [],
+    ['Metric', 'Value'],
+    ['Tasks assigned', d.totalAssigned],
+    ['Tasks completed', d.totalCompleted],
+    ['Completion rate', d.completionRate + '%'],
+    ['Active days', d.daysWithActivity + ' / ' + d.totalDays],
+    ['Staff involved', d.staffCount]
+  ];
+
+  const staffRows = [['Staff', 'Assigned', 'Completed', 'Rate']];
+  Object.keys(d.perStaff).sort((a,b)=>a.localeCompare(b)).forEach(name=>{
+    const s = d.perStaff[name];
+    const rate = s.assigned ? Math.round((s.completed/s.assigned)*100) : 0;
+    staffRows.push([name, s.assigned, s.completed, rate + '%']);
+  });
+
+  const catRows = [['Category', 'Assigned', 'Completed', 'Rate']];
+  Object.keys(d.perCategory).sort((a,b)=>d.perCategory[b].assigned - d.perCategory[a].assigned).forEach(cat=>{
+    const s = d.perCategory[cat];
+    const rate = s.assigned ? Math.round((s.completed/s.assigned)*100) : 0;
+    catRows.push([cat, s.assigned, s.completed, rate + '%']);
+  });
+
+  const dailyRows = [['Date', 'Assigned', 'Completed']];
+  d.perDaySeries.forEach(day=>{
+    dailyRows.push([fmtDateLabel(day.date), day.assigned, day.completed]);
+  });
+
+  return [
+    { name: 'Summary', rows: summaryRows },
+    { name: 'By Staff', rows: staffRows },
+    { name: 'By Category', rows: catRows },
+    { name: 'Daily Totals', rows: dailyRows }
+  ];
+}
+
+function downloadReportExcel(){
+  if(!reportData) return;
+  const btn = document.getElementById('downloadReportExcelBtn');
+  const originalLabel = btn ? btn.textContent : null;
+  if(btn){ btn.disabled = true; btn.textContent = 'Building…'; }
+  try{
+    const sheets = buildReportExcelSheets(reportData);
+    const bytes = buildWorkbookXlsx(sheets);
+    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report-${reportData.range.start}-to-${reportData.range.end}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }catch(err){
+    console.error('Report Excel generation failed', err);
+    showNotice('Something went wrong building the Excel report. Please try again.');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = originalLabel; }
+  }
+}
+
+// A simple inline SVG bar chart — no external chart library, themed to match the app.
+function buildReportChartSvg(series){
+  const w = 760, h = 220, padL = 34, padR = 10, padT = 10, padB = 28;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  const maxVal = Math.max(1, ...series.map(d => d.assigned));
+  const n = series.length;
+  const barGroupW = n ? plotW / n : plotW;
+  const barW = Math.max(2, Math.min(28, barGroupW * 0.32));
+  const showLabels = n <= 31;
+
+  const bars = series.map((d, i)=>{
+    const groupX = padL + i * barGroupW + barGroupW/2;
+    const assignedH = (d.assigned / maxVal) * plotH;
+    const completedH = (d.completed / maxVal) * plotH;
+    const assignedY = padT + plotH - assignedH;
+    const completedY = padT + plotH - completedH;
+    const labelX = groupX;
+    const dayNum = new Date(d.date+'T00:00:00').getDate();
+    return `
+      <rect x="${groupX - barW - 1}" y="${assignedY}" width="${barW}" height="${assignedH}" fill="var(--muted)" opacity="0.55"></rect>
+      <rect x="${groupX + 1}" y="${completedY}" width="${barW}" height="${completedH}" fill="var(--amber)"></rect>
+      ${showLabels ? `<text x="${labelX}" y="${h - 10}" font-size="9" fill="var(--muted)" text-anchor="middle">${dayNum}</text>` : ''}
+    `;
+  }).join('');
+
+  return `
+    <svg viewBox="0 0 ${w} ${h}" class="report-chart-svg" xmlns="http://www.w3.org/2000/svg">
+      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+plotH}" stroke="var(--line)"></line>
+      <line x1="${padL}" y1="${padT+plotH}" x2="${w-padR}" y2="${padT+plotH}" stroke="var(--line)"></line>
+      ${bars}
+    </svg>
+    <div class="report-chart-legend">
+      <span><span class="legend-swatch" style="background:var(--muted);opacity:.55;"></span> Assigned</span>
+      <span><span class="legend-swatch" style="background:var(--amber);"></span> Completed</span>
+    </div>`;
+}
+
+function renderReports(){
+  const el = document.getElementById('reportsView');
+  const rangeOptions = [
+    { key: 'day', label: 'Day' },
+    { key: 'week', label: 'Week' },
+    { key: 'month', label: 'Month' },
+    { key: 'year', label: 'Year' }
+  ];
+
+  const controlsHtml = `
+    <div class="report-controls">
+      <div class="cat-tabs" style="margin-bottom:0;">
+        ${rangeOptions.map(o => `<button class="cat-tab ${o.key===reportRangeType?'active':''}" data-reportrange="${o.key}">${o.label}</button>`).join('')}
+      </div>
+      <input type="date" id="reportAnchorInput" class="hours-input" value="${reportAnchorDate}">
+      <button class="btn btn-amber" id="generateReportBtn" ${reportBusy?'disabled':''}>${reportBusy ? 'Building report…' : 'Generate report'}</button>
+    </div>`;
+
+  let previewHtml = '';
+  if(reportBusy){
+    previewHtml = `<div class="empty-cat" style="margin-top:20px;">Fetching historical data — this can take a little longer for a full year…</div>`;
+  } else if(!reportData){
+    previewHtml = `<div class="empty-cat" style="margin-top:20px;">Choose a range above and click "Generate report" to see a summary, breakdown, and chart you can also download as PDF or Excel.</div>`;
+  } else {
+    const d = reportData;
+    const staffRows = Object.keys(d.perStaff).sort((a,b)=>a.localeCompare(b)).map(name=>{
+      const s = d.perStaff[name];
+      const rate = s.assigned ? Math.round((s.completed/s.assigned)*100) : 0;
+      return `<tr><td>${name}</td><td>${s.assigned}</td><td>${s.completed}</td><td>${rate}%</td></tr>`;
+    }).join('') || `<tr><td colspan="4" class="empty-cat">No data in this range.</td></tr>`;
+
+    const catRows = Object.keys(d.perCategory).sort((a,b)=>d.perCategory[b].assigned - d.perCategory[a].assigned).map(cat=>{
+      const s = d.perCategory[cat];
+      const rate = s.assigned ? Math.round((s.completed/s.assigned)*100) : 0;
+      return `<tr><td>${cat}</td><td>${s.assigned}</td><td>${s.completed}</td><td>${rate}%</td></tr>`;
+    }).join('') || `<tr><td colspan="4" class="empty-cat">No data in this range.</td></tr>`;
+
+    previewHtml = `
+      <div class="report-preview" style="margin-top:20px;">
+        <div class="report-title-row">
+          <div class="report-title">${d.label}</div>
+          <div class="report-actions">
+            <button class="btn btn-ghost btn-sm" id="downloadReportPdfBtn">⬇ PDF</button>
+            <button class="btn btn-ghost btn-sm" id="downloadReportExcelBtn">⬇ Excel</button>
+          </div>
+        </div>
+        <div class="dash-summary" style="margin-top:12px;">
+          <div class="dash-stat"><div class="num">${d.totalAssigned}</div><div class="lbl lbl-primary">Tasks assigned</div></div>
+          <div class="dash-stat"><div class="num">${d.totalCompleted}</div><div class="lbl lbl-primary">Tasks completed</div></div>
+          <div class="dash-stat"><div class="num">${d.completionRate}%</div><div class="lbl lbl-primary">Completion rate</div></div>
+          <div class="dash-stat"><div class="num">${d.daysWithActivity}/${d.totalDays}</div><div class="lbl lbl-primary">Active days</div></div>
+          <div class="dash-stat"><div class="num">${d.staffCount}</div><div class="lbl lbl-primary">Staff involved</div></div>
+        </div>
+        <div class="settings-hint" style="margin:16px 0 6px;">Tasks assigned vs. completed per day</div>
+        <div class="report-chart-wrap">${buildReportChartSvg(d.perDaySeries)}</div>
+        <div class="settings-hint" style="margin:20px 0 6px;">By team member</div>
+        <div class="history-wrap" style="overflow-x:auto;">
+          <table class="history-table"><thead><tr><th>Staff</th><th>Assigned</th><th>Completed</th><th>Rate</th></tr></thead><tbody>${staffRows}</tbody></table>
+        </div>
+        <div class="settings-hint" style="margin:20px 0 6px;">By category</div>
+        <div class="history-wrap" style="overflow-x:auto;">
+          <table class="history-table"><thead><tr><th>Category</th><th>Assigned</th><th>Completed</th><th>Rate</th></tr></thead><tbody>${catRows}</tbody></table>
+        </div>
+      </div>`;
+  }
+
+  el.innerHTML = controlsHtml + previewHtml;
+
+  el.querySelectorAll('[data-reportrange]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      reportRangeType = b.dataset.reportrange;
+      render();
+    });
+  });
+  const anchorInput = document.getElementById('reportAnchorInput');
+  if(anchorInput){
+    anchorInput.addEventListener('change', ()=>{
+      if(anchorInput.value) reportAnchorDate = anchorInput.value;
+    });
+  }
+  const genBtn = document.getElementById('generateReportBtn');
+  if(genBtn) genBtn.addEventListener('click', generateReport);
+
+  const pdfBtn = document.getElementById('downloadReportPdfBtn');
+  if(pdfBtn) pdfBtn.addEventListener('click', downloadReportPdf);
+  const excelBtn = document.getElementById('downloadReportExcelBtn');
+  if(excelBtn) excelBtn.addEventListener('click', downloadReportExcel);
+}
+
 function render(){
-  const sections = {dashboard:'dashboardView', assign:'assignView', bulk:'bulkView', tickets:'ticketsView', manage:'manageView', history:'historyView', weekly:'weeklyView'};
+  const sections = {dashboard:'dashboardView', assign:'assignView', bulk:'bulkView', tickets:'ticketsView', manage:'manageView', history:'historyView', weekly:'weeklyView', reports:'reportsView'};
   Object.keys(sections).forEach(v=>{
     document.getElementById(sections[v]).style.display = (v===view) ? 'block' : 'none';
   });
@@ -3084,6 +3660,7 @@ function render(){
   else if(view==='manage') renderManage();
   else if(view==='history') renderHistory();
   else if(view==='weekly') renderWeekly();
+  else if(view==='reports') renderReports();
   applyViewOnlyLock();
 }
 
