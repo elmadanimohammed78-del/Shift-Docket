@@ -435,7 +435,9 @@
     background:rgba(46,125,107,.22);color:#7FDBC0;border:1px solid rgba(111,203,175,.45);
     border-radius:6px;padding:8px 10px;font-size:12.5px;text-align:center;line-height:1.3;
     cursor:pointer;transition:background .12s ease,transform .08s ease;
+    display:flex;align-items:center;justify-content:center;gap:6px;
   }
+  .dash-tile-check{margin:0;flex:none;accent-color:var(--amber);}
   .dash-tile:hover{background:rgba(46,125,107,.36);}
   .dash-tile-done{
     background:transparent;color:var(--muted);border:1px solid var(--line);
@@ -830,6 +832,7 @@ let reportAnchorDate = new Date().toISOString().slice(0,10); // the date used to
 let reportData = null; // last-generated report aggregate, or null before "Generate report" is clicked
 let reportBusy = false; // true while a report is being fetched/built, to disable double-clicks
 let reportStaffFilter = []; // empty = everyone; otherwise only these staff names are included
+let dashBulkSelected = {}; // { staffName: [task, ...] } — tasks ticked for bulk "mark done", per person
 let manageCollapsed = {}; // { category: true } - day-grouped categories currently collapsed in Manage Tasks
 let editingTaskKey = null; // uniquely identifies the single task row currently in inline-edit mode
 
@@ -1468,6 +1471,18 @@ function toggleComplete(staff, task){
   render();
 }
 
+// Marks a whole batch of tasks done for one person at once — used by the Dashboard's
+// per-column "Mark N done" button after ticking several tiles.
+function markMultipleDone(staff, taskList){
+  if(!taskList.length) return;
+  const list = completions[staff] || [];
+  taskList.forEach(t => { if(!list.includes(t)) list.push(t); });
+  completions[staff] = list;
+  dashBulkSelected[staff] = [];
+  saveCompletions();
+  render();
+}
+
 function prevDateStr(d){
   const dt = new Date(d+'T00:00:00');
   dt.setDate(dt.getDate()-1);
@@ -1866,6 +1881,11 @@ function renderDashboard(){
     totalAssigned += assigned.length;
     totalDone += done.filter(t => assigned.includes(t)).length;
 
+    // Drop any stale selections for tasks that are already done (e.g. marked done individually
+    // since being ticked), so the "Mark N done" count always reflects what's actually pending.
+    dashBulkSelected[name] = (dashBulkSelected[name] || []).filter(t => !done.includes(t) && assigned.includes(t));
+    const selected = dashBulkSelected[name];
+
     const h = shiftHours[name] || {};
     const hoursLabel = (h.start && h.end) ? `${h.start}\u00A0\u00A0–\u00A0\u00A0${h.end}` : (h.start || h.end || '—');
 
@@ -1879,10 +1899,15 @@ function renderDashboard(){
           ${assigned.length
             ? assigned.map(t=>{
                 const isDone = done.includes(t);
-                return `<div class="dash-tile${isDone ? ' dash-tile-done' : ''}" data-dashtile="${name}|${t}" title="Click to ${isDone ? 'undo' : 'mark done'}">${isDone ? '✓ ' : ''}${displayTaskName(t)}</div>`;
+                const isSelected = selected.includes(t);
+                return `<div class="dash-tile${isDone ? ' dash-tile-done' : ''}" data-dashtile="${name}|${t}" title="Click to ${isDone ? 'undo' : 'mark done'}">
+                  ${!isDone ? `<input type="checkbox" class="dash-tile-check" data-dashselect="${name}|${t}" ${isSelected?'checked':''} title="Select for bulk mark-done">` : ''}
+                  ${isDone ? '✓ ' : ''}${displayTaskName(t)}
+                </div>`;
               }).join('')
             : `<div class="gantt-empty">Nothing pending</div>`}
         </div>
+        ${selected.length ? `<button class="btn btn-amber btn-sm" data-markdonebtn="${name}" style="margin-top:8px;width:100%;">Mark ${selected.length} done</button>` : ''}
       </div>`;
   }).join('');
 
@@ -1893,7 +1918,7 @@ function renderDashboard(){
       <div class="dash-stat"><div class="num">${totalDone}</div><div class="lbl lbl-primary">Tasks completed</div></div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-      <div class="settings-hint">Live overview for ${fmtDateLabel(currentDate)}. Click a task tile below to mark it done.</div>
+      <div class="settings-hint">Live overview for ${fmtDateLabel(currentDate)}. Click a tile to mark it done, or tick several and use "Mark done" for one person at once.</div>
       <button class="btn btn-amber" id="downloadExcelBtn">⬇ Download Excel (.xlsx)</button>
     </div>
     ${buildGanttChart(working)}
@@ -1901,6 +1926,25 @@ function renderDashboard(){
 
   const excelBtn = document.getElementById('downloadExcelBtn');
   if(excelBtn) excelBtn.addEventListener('click', downloadDailyExcel);
+
+  el.querySelectorAll('[data-dashselect]').forEach(cb=>{
+    cb.addEventListener('click', (ev)=>{
+      ev.stopPropagation(); // don't also trigger the tile's own click-to-toggle-done
+      const idx = cb.dataset.dashselect.indexOf('|');
+      const name = cb.dataset.dashselect.slice(0, idx);
+      const task = cb.dataset.dashselect.slice(idx + 1);
+      if(!dashBulkSelected[name]) dashBulkSelected[name] = [];
+      const arr = dashBulkSelected[name];
+      const i = arr.indexOf(task);
+      if(i > -1) arr.splice(i, 1); else arr.push(task);
+      render();
+    });
+  });
+  el.querySelectorAll('[data-markdonebtn]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      markMultipleDone(btn.dataset.markdonebtn, dashBulkSelected[btn.dataset.markdonebtn] || []);
+    });
+  });
 
   el.querySelectorAll('[data-dashtile]').forEach(tile=>{
     tile.addEventListener('click', ()=>{
